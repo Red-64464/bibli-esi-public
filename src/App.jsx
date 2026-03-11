@@ -14,6 +14,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  ArrowUp,
 } from "lucide-react";
 
 /* ─── Helpers statut ────────────────────────────────────────────── */
@@ -318,7 +319,15 @@ function App() {
   const [tri, setTri] = useState("titre");
   const [showFilters, setShowFilters] = useState(false);
   const [livreSelectionne, setLivreSelectionne] = useState(null);
+  const [scrollY, setScrollY] = useState(0);
   const searchRef = useRef(null);
+
+  /* ── Scroll tracker ── */
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   /* ── Chargement Supabase ── */
   useEffect(() => {
@@ -450,6 +459,10 @@ function App() {
     filtres.langue ||
     filtres.annee;
 
+  const livresDisponibles = livresFiltres.filter(
+    (l) => getStatut(l) === "disponible",
+  ).length;
+
   const resetFilters = () =>
     setFiltres({ disponibilite: "all", categorie: "", langue: "", annee: "" });
 
@@ -489,7 +502,7 @@ function App() {
                   onBlur={() =>
                     setTimeout(() => setShowSuggestions(false), 150)
                   }
-                  placeholder="Titre, auteur, ISBN, tags…"
+                  placeholder="Titre, auteur, ISBN…"
                   className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-9 py-2.5 text-biblio-text placeholder-biblio-muted focus:outline-none focus:ring-2 focus:ring-biblio-accent text-sm"
                 />
                 {recherche && (
@@ -698,6 +711,15 @@ function App() {
             </span>{" "}
             livre{livresFiltres.length !== 1 ? "s" : ""}
             {recherche && ` pour "${recherche}"`}
+            {livresFiltres.length > 0 && (
+              <span className="ml-2 text-biblio-muted/60">
+                ·{" "}
+                <span className="text-green-400 font-medium">
+                  {livresDisponibles}
+                </span>{" "}
+                disponible{livresDisponibles !== 1 ? "s" : ""}
+              </span>
+            )}
           </span>
         </div>
 
@@ -736,7 +758,7 @@ function App() {
           </div>
         ) : (
           /* Grille responsive */
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
             {livresFiltres.map((livre) => (
               <BookCard
                 key={livre.id}
@@ -754,6 +776,17 @@ function App() {
           Bibl'ESI — Bibliothèque étudiante de l'ESI
         </p>
       </footer>
+
+      {/* Scroll to top */}
+      {scrollY > 300 && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-40 p-3 rounded-full bg-biblio-accent hover:bg-biblio-accent-hover text-white shadow-lg transition-all duration-200 hover:scale-110"
+          aria-label="Remonter en haut"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Modal détail */}
       {livreSelectionne && (
