@@ -19,6 +19,8 @@ import {
   Sun,
   Moon,
   Download,
+  AlertTriangle,
+  ChevronUp,
 } from "lucide-react";
 
 const PAGE_SIZE = 24;
@@ -377,6 +379,292 @@ function BookModal({ livre, onClose }) {
         )}
       </div>
     </div>
+  );
+}
+
+/* ─── Horaires helpers ───────────────────────────────────────────── */
+/*
+  Schéma Supabase attendu :
+
+  TABLE horaires (
+    id               serial PRIMARY KEY,
+    jour             integer NOT NULL,          -- 0=Dim, 1=Lun, ..., 6=Sam
+    heure_ouverture  time,                      -- ex : '08:00'
+    heure_fermeture  time,                      -- ex : '17:30'
+    ferme            boolean DEFAULT false      -- true = fermé ce jour
+  );
+
+  TABLE config (
+    id                        integer PRIMARY KEY DEFAULT 1,
+    fermeture_exceptionnelle  boolean DEFAULT false,
+    message_fermeture         text
+  );
+*/
+
+const JOURS_LONG = [
+  "Dimanche",
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+];
+const JOURS_COURT = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+const JOURS_ORDRE = [1, 2, 3, 4, 5, 6, 0]; // lundi → dimanche
+
+function parseHeure(str) {
+  if (!str) return null;
+  const [h, m] = String(str).split(":").map(Number);
+  return h * 60 + (m ?? 0);
+}
+
+function formatHeure(str) {
+  if (!str) return "";
+  const parts = String(str).split(":");
+  const h = parseInt(parts[0], 10);
+  const m = parts[1] ?? "00";
+  return m === "00" ? `${h}h00` : `${h}h${m}`;
+}
+
+/* ─── Composant Horaires ─────────────────────────────────────────── */
+
+function HorairesSection() {
+  const [horaires, setHoraires] = useState([]);
+  const [config, setConfig] = useState(null);
+  const [now, setNow] = useState(() => new Date());
+  const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
+
+  /* Tick toutes les minutes */
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  /* Chargement + temps réel */
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchAll = async () => {
+      try {
+        const [resH, resC] = await Promise.all([
+          supabase.from("horaires").select("*").order("jour"),
+          supabase
+            .from("config")
+            .select("fermeture_exceptionnelle,message_fermeture")
+            .eq("id", 1)
+            .maybeSingle(),
+        ]);
+        if (!cancelled) {
+          setHoraires(resH.data ?? []);
+          setConfig(resC.data ?? null);
+        }
+      } catch (_) {
+        /* tables pas encore créées — on ignore silencieusement */
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchAll();
+
+    const ch = supabase
+      .channel("horaires-config-rt")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "horaires" },
+        fetchAll,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "config" },
+        fetchAll,
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+  const todayIdx = now.getDay();
+  const todayH = horaires.find((h) => h.jour === todayIdx);
+
+  const isOpen = useMemo(() => {
+    if (config?.fermeture_exceptionnelle) return false;
+    if (!todayH || todayH.ferme) return false;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const open = parseHeure(todayH.heure_ouverture);
+    const close = parseHeure(todayH.heure_fermeture);
+    if (open == null || close == null) return false;
+    return nowMin >= open && nowMin < close;
+  }, [todayH, config, now]);
+
+  const prochainEvenement = useMemo(() => {
+    if (config?.fermeture_exceptionnelle) return null;
+    if (!todayH || todayH.ferme) return null;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const open = parseHeure(todayH.heure_ouverture);
+    const close = parseHeure(todayH.heure_fermeture);
+    if (open == null || close == null) return null;
+    if (nowMin < open)
+      return { type: "ouvre", heure: formatHeure(todayH.heure_ouverture) };
+    if (nowMin < close)
+      return { type: "ferme", heure: formatHeure(todayH.heure_fermeture) };
+    return null;
+  }, [todayH, config, now]);
+
+  if (loading) return null;
+  if (horaires.length === 0 && !config) return null;
+
+  const fermetureExcep = config?.fermeture_exceptionnelle;
+
+  return (
+    <section className="mb-8">
+      <div className="bg-biblio-card border border-white/10 rounded-2xl overflow-hidden">
+        {/* En-tête cliquable */}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors text-left"
+          aria-expanded={!collapsed}
+        >
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-biblio-accent/10 flex-shrink-0">
+              <Clock className="w-4 h-4 text-biblio-accent" />
+            </div>
+            <span className="font-semibold text-biblio-text text-sm sm:text-base">
+              Horaires d&apos;ouverture
+            </span>
+
+            {/* Badge ouvert / fermé */}
+            {!fermetureExcep && (
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                  isOpen
+                    ? "bg-green-500/15 text-green-400 border border-green-500/25"
+                    : "bg-red-500/15 text-red-400 border border-red-500/25"
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    isOpen ? "bg-green-400 animate-pulse" : "bg-red-400"
+                  }`}
+                />
+                {isOpen ? "Ouvert" : "Fermé"}
+                {prochainEvenement && (
+                  <span className="font-normal opacity-75 hidden sm:inline">
+                    &nbsp;·&nbsp;
+                    {prochainEvenement.type === "ferme"
+                      ? `jusqu'à ${prochainEvenement.heure}`
+                      : `ouvre à ${prochainEvenement.heure}`}
+                  </span>
+                )}
+              </span>
+            )}
+
+            {/* Badge fermeture exceptionnelle */}
+            {fermetureExcep && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/25 flex-shrink-0">
+                <AlertTriangle className="w-3 h-3" />
+                Fermé exceptionnellement
+              </span>
+            )}
+          </div>
+
+          {collapsed ? (
+            <ChevronDown className="w-4 h-4 text-biblio-muted flex-shrink-0 ml-2" />
+          ) : (
+            <ChevronUp className="w-4 h-4 text-biblio-muted flex-shrink-0 ml-2" />
+          )}
+        </button>
+
+        {/* Corps */}
+        {!collapsed && (
+          <div className="border-t border-white/10">
+            {/* Bandeau fermeture exceptionnelle */}
+            {fermetureExcep && (
+              <div className="flex items-start gap-3 bg-red-500/10 border-b border-red-500/20 px-5 py-4">
+                <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-red-400 text-sm">
+                    Fermeture exceptionnelle
+                  </p>
+                  {config?.message_fermeture && (
+                    <p className="text-sm text-red-300/80 mt-0.5 leading-relaxed">
+                      {config.message_fermeture}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Grille 7 jours */}
+            <div className="grid grid-cols-7 divide-x divide-white/5">
+              {JOURS_ORDRE.map((jourIdx) => {
+                const h = horaires.find((r) => r.jour === jourIdx);
+                const isToday = jourIdx === todayIdx;
+                const ferme = !h || h.ferme;
+
+                return (
+                  <div
+                    key={jourIdx}
+                    className={`flex flex-col items-center py-4 px-0.5 sm:px-2 gap-1.5 ${
+                      isToday ? "bg-biblio-accent/10" : ""
+                    }`}
+                  >
+                    {/* Nom du jour */}
+                    <span
+                      className={`text-[9px] sm:text-[11px] font-bold uppercase tracking-wider ${
+                        isToday ? "text-biblio-accent" : "text-biblio-muted"
+                      }`}
+                    >
+                      <span className="sm:hidden">
+                        {JOURS_COURT[jourIdx].slice(0, 2)}
+                      </span>
+                      <span className="hidden sm:inline">
+                        {JOURS_LONG[jourIdx]}
+                      </span>
+                    </span>
+
+                    {/* Point indicateur du jour actuel */}
+                    {isToday && (
+                      <span className="w-1 h-1 rounded-full bg-biblio-accent" />
+                    )}
+
+                    {/* Plage horaire ou Fermé */}
+                    {ferme ? (
+                      <span className="text-[9px] sm:text-[11px] text-biblio-muted/40 font-medium text-center">
+                        Fermé
+                      </span>
+                    ) : (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span
+                          className={`text-[9px] sm:text-xs font-semibold ${
+                            isToday ? "text-biblio-text" : "text-biblio-muted"
+                          }`}
+                        >
+                          {formatHeure(h.heure_ouverture)}
+                        </span>
+                        <span className="w-3 h-px bg-biblio-muted/25" />
+                        <span
+                          className={`text-[9px] sm:text-xs font-semibold ${
+                            isToday ? "text-biblio-text" : "text-biblio-muted"
+                          }`}
+                        >
+                          {formatHeure(h.heure_fermeture)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -990,10 +1278,13 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 py-6 mt-12">
-        <p className="text-center text-xs text-biblio-muted">
-          Bibl'ESI — Bibliothèque étudiante de l'ESI
-        </p>
+      <footer className="border-t border-white/10 py-8 mt-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <HorairesSection />
+          <p className="text-center text-xs text-biblio-muted">
+            Bibl’ESI — Bibliothèque étudiante de l’ESI
+          </p>
+        </div>
       </footer>
 
       {/* Scroll to top */}
