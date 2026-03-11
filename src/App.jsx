@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "./lib/supabase";
 import {
   Search,
-  Library,
   BookOpen,
   Loader2,
   X,
@@ -461,16 +460,16 @@ function App() {
       <header className="bg-biblio-card border-b border-white/10 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           {/* Logo mobile */}
-          <div className="flex items-center gap-3 mb-3 sm:hidden">
-            <Library className="w-6 h-6 text-biblio-accent" />
-            <h1 className="text-lg font-bold text-biblio-text">BiblioGest</h1>
+          <div className="flex items-center gap-2 mb-3 sm:hidden">
+            <img src="/logo.png" alt="Bibl'ESI" className="h-9 w-auto" />
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Logo desktop */}
-            <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
-              <Library className="w-7 h-7 text-biblio-accent" />
-              <h1 className="text-xl font-bold text-biblio-text whitespace-nowrap">
+            <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
+              <img src="/logo.png" alt="Bibl'ESI" className="h-11 w-auto" />
+              <div className="w-px h-6 bg-white/10" />
+              <h1 className="text-lg font-semibold text-biblio-muted whitespace-nowrap">
                 Catalogue de la bibliothèque
               </h1>
             </div>
@@ -752,7 +751,7 @@ function App() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-6 mt-12">
         <p className="text-center text-xs text-biblio-muted">
-          Bibliothèque étudiante — Catalogue en ligne
+          Bibl'ESI — Bibliothèque étudiante de l'ESI
         </p>
       </footer>
 
