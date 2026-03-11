@@ -601,7 +601,7 @@ function HorairesSection() {
                   <p className="font-semibold text-red-400 text-sm">
                     Fermeture exceptionnelle
                   </p>
-                  {config?.message_fermeture && (
+                  {closedMsg && (
                     <p className="text-sm text-red-300/80 mt-0.5 leading-relaxed">
                       {closedMsg}
                     </p>
