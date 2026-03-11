@@ -384,23 +384,22 @@ function BookModal({ livre, onClose }) {
 
 /* ─── Horaires helpers ───────────────────────────────────────────── */
 /*
-  Schéma Supabase attendu :
-
-  TABLE horaires (
-    id               serial PRIMARY KEY,
-    jour             integer NOT NULL,          -- 0=Dim, 1=Lun, ..., 6=Sam
-    heure_ouverture  time,                      -- ex : '08:00'
-    heure_fermeture  time,                      -- ex : '17:30'
-    ferme            boolean DEFAULT false      -- true = fermé ce jour
-  );
-
-  TABLE config (
-    id                        integer PRIMARY KEY DEFAULT 1,
-    fermeture_exceptionnelle  boolean DEFAULT false,
-    message_fermeture         text
-  );
+  Lit depuis la table "settings" (key/value) :
+    library_hours        → JSON {"lundi":{"ouvert":true,"debut":"08:00","fin":"17:00"}, ...}
+    library_is_closed    → "true" | "false"
+    library_closed_message → texte libre (ou "EMPTY")
 */
 
+// Correspondance JS getDay() → clé JSON
+const JOURS_FR = [
+  "dimanche",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+];
 const JOURS_LONG = [
   "Dimanche",
   "Lundi",
@@ -430,8 +429,9 @@ function formatHeure(str) {
 /* ─── Composant Horaires ─────────────────────────────────────────── */
 
 function HorairesSection() {
-  const [horaires, setHoraires] = useState([]);
-  const [config, setConfig] = useState(null);
+  const [hoursMap, setHoursMap] = useState(null); // { lundi: {ouvert,debut,fin}, ... }
+  const [isClosed, setIsClosed] = useState(false);
+  const [closedMsg, setClosedMsg] = useState("");
   const [now, setNow] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -442,26 +442,41 @@ function HorairesSection() {
     return () => clearInterval(id);
   }, []);
 
-  /* Chargement + temps réel */
+  /* Chargement + temps réel depuis settings */
   useEffect(() => {
     let cancelled = false;
 
     const fetchAll = async () => {
       try {
-        const [resH, resC] = await Promise.all([
-          supabase.from("horaires").select("*").order("jour"),
-          supabase
-            .from("config")
-            .select("fermeture_exceptionnelle,message_fermeture")
-            .eq("id", 1)
-            .maybeSingle(),
-        ]);
-        if (!cancelled) {
-          setHoraires(resH.data ?? []);
-          setConfig(resC.data ?? null);
+        const { data } = await supabase
+          .from("settings")
+          .select("key,value")
+          .in("key", [
+            "library_hours",
+            "library_is_closed",
+            "library_closed_message",
+          ]);
+
+        if (!cancelled && data) {
+          const row = Object.fromEntries(data.map((r) => [r.key, r.value]));
+
+          // Horaires JSON
+          try {
+            const parsed = JSON.parse(row.library_hours ?? "{}");
+            setHoursMap(parsed);
+          } catch (_) {
+            setHoursMap({});
+          }
+
+          // Fermeture exceptionnelle
+          setIsClosed(row.library_is_closed === "true");
+
+          // Message
+          const msg = row.library_closed_message ?? "";
+          setClosedMsg(msg === "EMPTY" ? "" : msg);
         }
       } catch (_) {
-        /* tables pas encore créées — on ignore silencieusement */
+        /* silencieux */
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -470,15 +485,10 @@ function HorairesSection() {
     fetchAll();
 
     const ch = supabase
-      .channel("horaires-config-rt")
+      .channel("settings-horaires-rt")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "horaires" },
-        fetchAll,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "config" },
+        { event: "*", schema: "public", table: "settings" },
         fetchAll,
       )
       .subscribe();
@@ -490,36 +500,36 @@ function HorairesSection() {
   }, []);
 
   const todayIdx = now.getDay();
-  const todayH = horaires.find((h) => h.jour === todayIdx);
+  const todayKey = JOURS_FR[todayIdx];
+  const todayData = hoursMap?.[todayKey];
 
   const isOpen = useMemo(() => {
-    if (config?.fermeture_exceptionnelle) return false;
-    if (!todayH || todayH.ferme) return false;
+    if (isClosed) return false;
+    if (!todayData?.ouvert) return false;
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    const open = parseHeure(todayH.heure_ouverture);
-    const close = parseHeure(todayH.heure_fermeture);
+    const open = parseHeure(todayData.debut);
+    const close = parseHeure(todayData.fin);
     if (open == null || close == null) return false;
     return nowMin >= open && nowMin < close;
-  }, [todayH, config, now]);
+  }, [todayData, isClosed, now]);
 
   const prochainEvenement = useMemo(() => {
-    if (config?.fermeture_exceptionnelle) return null;
-    if (!todayH || todayH.ferme) return null;
+    if (isClosed || !todayData?.ouvert) return null;
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    const open = parseHeure(todayH.heure_ouverture);
-    const close = parseHeure(todayH.heure_fermeture);
+    const open = parseHeure(todayData.debut);
+    const close = parseHeure(todayData.fin);
     if (open == null || close == null) return null;
     if (nowMin < open)
-      return { type: "ouvre", heure: formatHeure(todayH.heure_ouverture) };
+      return { type: "ouvre", heure: formatHeure(todayData.debut) };
     if (nowMin < close)
-      return { type: "ferme", heure: formatHeure(todayH.heure_fermeture) };
+      return { type: "ferme", heure: formatHeure(todayData.fin) };
     return null;
-  }, [todayH, config, now]);
+  }, [todayData, isClosed, now]);
 
   if (loading) return null;
-  if (horaires.length === 0 && !config) return null;
+  if (!hoursMap || Object.keys(hoursMap).length === 0) return null;
 
-  const fermetureExcep = config?.fermeture_exceptionnelle;
+  const fermetureExcep = isClosed;
 
   return (
     <section className="mb-8">
@@ -593,7 +603,7 @@ function HorairesSection() {
                   </p>
                   {config?.message_fermeture && (
                     <p className="text-sm text-red-300/80 mt-0.5 leading-relaxed">
-                      {config.message_fermeture}
+                      {closedMsg}
                     </p>
                   )}
                 </div>
@@ -603,9 +613,10 @@ function HorairesSection() {
             {/* Grille 7 jours */}
             <div className="grid grid-cols-7 divide-x divide-white/5">
               {JOURS_ORDRE.map((jourIdx) => {
-                const h = horaires.find((r) => r.jour === jourIdx);
+                const key = JOURS_FR[jourIdx];
+                const d = hoursMap?.[key];
                 const isToday = jourIdx === todayIdx;
-                const ferme = !h || h.ferme;
+                const ferme = !d || !d.ouvert;
 
                 return (
                   <div
@@ -645,7 +656,7 @@ function HorairesSection() {
                             isToday ? "text-biblio-text" : "text-biblio-muted"
                           }`}
                         >
-                          {formatHeure(h.heure_ouverture)}
+                          {formatHeure(d.debut)}
                         </span>
                         <span className="w-3 h-px bg-biblio-muted/25" />
                         <span
@@ -653,7 +664,7 @@ function HorairesSection() {
                             isToday ? "text-biblio-text" : "text-biblio-muted"
                           }`}
                         >
-                          {formatHeure(h.heure_fermeture)}
+                          {formatHeure(d.fin)}
                         </span>
                       </div>
                     )}
