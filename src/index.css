@@ -9,6 +9,7 @@
   --color-biblio-muted: #94a3b8;
   --color-biblio-success: #22c55e;
   --color-biblio-danger: #ef4444;
+  --color-biblio-warning: #f59e0b;
 }
 
 body {
@@ -19,4 +20,26 @@ body {
     system-ui,
     -apple-system,
     sans-serif;
+}
+
+/* Select stylisé pour le thème sombre */
+.biblio-select {
+  background-color: rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  color: var(--color-biblio-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.biblio-select:focus {
+  ring: 2px solid var(--color-biblio-accent);
+  border-color: var(--color-biblio-accent);
+}
+
+.biblio-select option {
+  background-color: #1e293b;
+  color: var(--color-biblio-text);
 }
