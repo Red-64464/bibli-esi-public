@@ -1,0 +1,19 @@
+{
+  "name": "Bibl'ESI — Catalogue",
+  "short_name": "Bibl'ESI",
+  "description": "Catalogue de la bibliothèque étudiante de l'ESI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "orientation": "portrait",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

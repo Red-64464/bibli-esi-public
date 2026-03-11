@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 import {
   Search,
   BookOpen,
-  Loader2,
   X,
   SlidersHorizontal,
   ChevronDown,
@@ -15,7 +14,14 @@ import {
   XCircle,
   Clock,
   ArrowUp,
+  LayoutGrid,
+  List,
+  Sun,
+  Moon,
+  Download,
 } from "lucide-react";
+
+const PAGE_SIZE = 24;
 
 /* ─── Helpers statut ────────────────────────────────────────────── */
 
@@ -66,6 +72,77 @@ function StatutBadge({ livre }) {
   );
 }
 
+/* ─── Skeleton carte ────────────────────────────────────────────── */
+
+function BookCardSkeleton() {
+  return (
+    <div className="bg-biblio-card rounded-xl border border-white/10 overflow-hidden flex flex-col animate-pulse">
+      <div className="aspect-[2/3] bg-white/10" />
+      <div className="p-3 flex flex-col gap-2">
+        <div className="h-2.5 bg-white/10 rounded-full w-4/5" />
+        <div className="h-2.5 bg-white/10 rounded-full w-3/5" />
+        <div className="h-2 bg-white/10 rounded-full w-2/5 mt-1" />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Skeleton ligne liste ───────────────────────────────────────── */
+
+function BookListRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 bg-biblio-card border border-white/10 rounded-xl px-3 py-2.5 animate-pulse">
+      <div className="w-9 h-12 flex-shrink-0 rounded-lg bg-white/10" />
+      <div className="flex-1 flex flex-col gap-2">
+        <div className="h-2.5 bg-white/10 rounded-full w-2/3" />
+        <div className="h-2 bg-white/10 rounded-full w-1/2" />
+      </div>
+      <div className="w-16 h-5 bg-white/10 rounded-full" />
+    </div>
+  );
+}
+
+/* ─── Ligne liste ───────────────────────────────────────────────── */
+
+function BookListRow({ livre, onClick }) {
+  return (
+    <div
+      onClick={() => onClick(livre)}
+      className="flex items-center gap-3 bg-biblio-card border border-white/10 rounded-xl px-3 py-2.5 cursor-pointer hover:border-biblio-accent/50 hover:bg-white/5 transition-all"
+    >
+      <div className="w-9 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
+        {livre.couverture_url ? (
+          <img
+            src={livre.couverture_url}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <BookOpen className="w-4 h-4 text-biblio-muted/30" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm text-biblio-text line-clamp-1 leading-tight">
+          {livre.titre}
+        </p>
+        <p className="text-xs text-biblio-muted line-clamp-1 mt-0.5">
+          {livre.auteur || "Auteur inconnu"}
+          {livre.annee ? ` · ${livre.annee}` : ""}
+        </p>
+      </div>
+      {livre.categorie && (
+        <span className="hidden sm:inline text-[10px] text-biblio-accent/70 flex-shrink-0 max-w-[100px] truncate">
+          {livre.categorie}
+        </span>
+      )}
+      <div className="flex-shrink-0">
+        <StatutBadge livre={livre} />
+      </div>
+    </div>
+  );
+}
+
 /* ─── Carte livre ───────────────────────────────────────────────── */
 
 function BookCard({ livre, onClick }) {
@@ -80,6 +157,7 @@ function BookCard({ livre, onClick }) {
           <img
             src={livre.couverture_url}
             alt={livre.titre}
+            loading="lazy"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
@@ -320,7 +398,59 @@ function App() {
   const [showFilters, setShowFilters] = useState(false);
   const [livreSelectionne, setLivreSelectionne] = useState(null);
   const [scrollY, setScrollY] = useState(0);
+  const [vue, setVue] = useState(() => localStorage.getItem("vue") || "grille");
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("theme") || "dark",
+  );
+  const [page, setPage] = useState(1);
+  const [installPrompt, setInstallPrompt] = useState(null);
   const searchRef = useRef(null);
+  const sentinelRef = useRef(null);
+
+  /* ── Thème ── */
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.add("theme-light");
+    } else {
+      document.documentElement.classList.remove("theme-light");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  /* ── Vue ── */
+  useEffect(() => {
+    localStorage.setItem("vue", vue);
+  }, [vue]);
+
+  /* ── PWA install prompt ── */
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => setInstallPrompt(null));
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  /* ── Infinite scroll ── */
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setPage((p) => p + 1);
+      },
+      { rootMargin: "300px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loading]);
+
+  /* ── Reset pagination quand les filtres changent ── */
+  useEffect(() => {
+    setPage(1);
+  }, [recherche, filtres, tri]);
 
   /* ── Scroll tracker ── */
   useEffect(() => {
@@ -463,6 +593,19 @@ function App() {
     (l) => getStatut(l) === "disponible",
   ).length;
 
+  const livresAffiches = useMemo(
+    () => livresFiltres.slice(0, page * PAGE_SIZE),
+    [livresFiltres, page],
+  );
+  const hasMore = livresAffiches.length < livresFiltres.length;
+
+  const handleInstall = useCallback(async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") setInstallPrompt(null);
+  }, [installPrompt]);
+
   const resetFilters = () =>
     setFiltres({ disponibilite: "all", categorie: "", langue: "", annee: "" });
 
@@ -571,6 +714,33 @@ function App() {
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-biblio-muted pointer-events-none" />
               </div>
+
+              {/* Thème clair / sombre */}
+              <button
+                onClick={() =>
+                  setTheme((t) => (t === "dark" ? "light" : "dark"))
+                }
+                className="p-2.5 rounded-lg bg-white/5 border border-white/10 text-biblio-muted hover:text-biblio-text hover:bg-white/10 transition-colors flex-shrink-0"
+                aria-label="Basculer le thème"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Installer l'appli (PWA) */}
+              {installPrompt && (
+                <button
+                  onClick={handleInstall}
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-biblio-accent hover:bg-biblio-accent-hover text-white text-sm font-medium transition-colors flex-shrink-0"
+                  aria-label="Installer l'application"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Installer</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -702,35 +872,69 @@ function App() {
 
       {/* ── Contenu principal ── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* Compteur */}
-        <div className="flex items-center gap-2 mb-6 text-biblio-muted text-sm">
-          <BookOpen className="w-4 h-4" />
-          <span>
-            <span className="text-biblio-text font-medium">
-              {livresFiltres.length}
-            </span>{" "}
-            livre{livresFiltres.length !== 1 ? "s" : ""}
-            {recherche && ` pour "${recherche}"`}
-            {livresFiltres.length > 0 && (
-              <span className="ml-2 text-biblio-muted/60">
-                ·{" "}
-                <span className="text-green-400 font-medium">
-                  {livresDisponibles}
-                </span>{" "}
-                disponible{livresDisponibles !== 1 ? "s" : ""}
-              </span>
-            )}
-          </span>
+        {/* Compteur + toggle grille/liste */}
+        <div className="flex items-center justify-between gap-2 mb-6">
+          <div className="flex items-center gap-2 text-biblio-muted text-sm min-w-0">
+            <BookOpen className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">
+              <span className="text-biblio-text font-medium">
+                {livresFiltres.length}
+              </span>{" "}
+              livre{livresFiltres.length !== 1 ? "s" : ""}
+              {recherche && ` pour "${recherche}"`}
+              {livresFiltres.length > 0 && (
+                <span className="ml-2 text-biblio-muted/60">
+                  ·{" "}
+                  <span className="text-green-400 font-medium">
+                    {livresDisponibles}
+                  </span>{" "}
+                  disponible{livresDisponibles !== 1 ? "s" : ""}
+                </span>
+              )}
+            </span>
+          </div>
+          {/* Toggle vue */}
+          <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1 flex-shrink-0">
+            <button
+              onClick={() => setVue("grille")}
+              className={`p-1.5 rounded-md transition-colors ${
+                vue === "grille"
+                  ? "bg-biblio-accent text-white"
+                  : "text-biblio-muted hover:text-biblio-text"
+              }`}
+              aria-label="Vue grille"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setVue("liste")}
+              className={`p-1.5 rounded-md transition-colors ${
+                vue === "liste"
+                  ? "bg-biblio-accent text-white"
+                  : "text-biblio-muted hover:text-biblio-text"
+              }`}
+              aria-label="Vue liste"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Chargement */}
+        {/* Chargement — skeletons adaptés à la vue */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <Loader2 className="w-10 h-10 animate-spin text-biblio-accent" />
-            <p className="text-biblio-muted text-sm">
-              Chargement du catalogue…
-            </p>
-          </div>
+          vue === "grille" ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <BookCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <BookListRowSkeleton key={i} />
+              ))}
+            </div>
+          )
         ) : livresFiltres.length === 0 ? (
           <div className="text-center py-24 flex flex-col items-center gap-4">
             <BookOpen className="w-14 h-14 text-biblio-muted/20" />
@@ -756,17 +960,32 @@ function App() {
               </button>
             )}
           </div>
+        ) : vue === "grille" ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
+              {livresAffiches.map((livre) => (
+                <BookCard
+                  key={livre.id}
+                  livre={livre}
+                  onClick={setLivreSelectionne}
+                />
+              ))}
+            </div>
+            {hasMore && <div ref={sentinelRef} className="h-4 mt-4" />}
+          </>
         ) : (
-          /* Grille responsive */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
-            {livresFiltres.map((livre) => (
-              <BookCard
-                key={livre.id}
-                livre={livre}
-                onClick={setLivreSelectionne}
-              />
-            ))}
-          </div>
+          <>
+            <div className="flex flex-col gap-2">
+              {livresAffiches.map((livre) => (
+                <BookListRow
+                  key={livre.id}
+                  livre={livre}
+                  onClick={setLivreSelectionne}
+                />
+              ))}
+            </div>
+            {hasMore && <div ref={sentinelRef} className="h-4 mt-4" />}
+          </>
         )}
       </main>
 

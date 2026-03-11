@@ -43,3 +43,52 @@ body {
   background-color: #1e293b;
   color: var(--color-biblio-text);
 }
+
+/* ─── Thème clair ──────────────────────────────────────────────── */
+html.theme-light {
+  --color-biblio-bg: #f8fafc;
+  --color-biblio-card: #ffffff;
+  --color-biblio-text: #1e293b;
+  --color-biblio-muted: #64748b;
+  --color-biblio-accent: #4f46e5;
+  --color-biblio-accent-hover: #6366f1;
+  color-scheme: light;
+}
+
+html.theme-light body {
+  background-color: var(--color-biblio-bg);
+}
+
+/* Ombre sur les cartes (compense les bordures blanches invisibles) */
+html.theme-light .bg-biblio-card {
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 0.08),
+    0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+/* Surcharge white-opacity → black-opacity en mode clair */
+html.theme-light .bg-white\/5,
+html.theme-light .bg-white\/10 {
+  background-color: rgb(0 0 0 / 0.04) !important;
+}
+html.theme-light .border-white\/10,
+html.theme-light .border-white\/5 {
+  border-color: rgb(0 0 0 / 0.08) !important;
+}
+
+/* Inputs et selects */
+html.theme-light input[type="text"],
+html.theme-light select {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+html.theme-light input[type="text"]::placeholder {
+  color: #94a3b8;
+}
+html.theme-light .biblio-select,
+html.theme-light .biblio-select option {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
