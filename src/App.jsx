@@ -679,6 +679,83 @@ function HorairesSection() {
   );
 }
 
+/* ─── Pagination ────────────────────────────────────────────────── */
+
+function Pagination({ page, totalPages, setPage }) {
+  if (totalPages <= 1) return null;
+
+  const goTo = (p) => {
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Build page buttons with ellipsis: always show first, last, current ±1
+  const pages = [];
+  const delta = 1;
+  const range = [];
+  for (
+    let i = Math.max(2, page - delta);
+    i <= Math.min(totalPages - 1, page + delta);
+    i++
+  ) {
+    range.push(i);
+  }
+  pages.push(1);
+  if (range[0] > 2) pages.push("...");
+  pages.push(...range);
+  if (range[range.length - 1] < totalPages - 1) pages.push("...");
+  if (totalPages > 1) pages.push(totalPages);
+
+  const btnBase =
+    "w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-150";
+  const btnActive = "bg-biblio-accent text-white";
+  const btnInactive =
+    "bg-biblio-card border border-white/10 text-biblio-text hover:bg-biblio-accent/20";
+  const btnDisabled = "opacity-30 pointer-events-none " + btnInactive;
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 mt-8 mb-2 flex-wrap">
+      <button
+        className={page === 1 ? btnDisabled : btnInactive + " " + btnBase}
+        onClick={() => goTo(page - 1)}
+        disabled={page === 1}
+        aria-label="Page précédente"
+      >
+        ‹
+      </button>
+      {pages.map((p, i) =>
+        p === "..." ? (
+          <span
+            key={"ellipsis-" + i}
+            className="w-9 h-9 flex items-center justify-center text-biblio-muted text-sm select-none"
+          >
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => goTo(p)}
+            aria-current={p === page ? "page" : undefined}
+            className={`${btnBase} ${p === page ? btnActive : btnInactive}`}
+          >
+            {p}
+          </button>
+        ),
+      )}
+      <button
+        className={
+          page === totalPages ? btnDisabled : btnInactive + " " + btnBase
+        }
+        onClick={() => goTo(page + 1)}
+        disabled={page === totalPages}
+        aria-label="Page suivante"
+      >
+        ›
+      </button>
+    </div>
+  );
+}
+
 /* ─── App principale ────────────────────────────────────────────── */
 
 function App() {
@@ -704,7 +781,6 @@ function App() {
   const [page, setPage] = useState(1);
   const [installPrompt, setInstallPrompt] = useState(null);
   const searchRef = useRef(null);
-  const sentinelRef = useRef(null);
 
   /* ── Thème ── */
   useEffect(() => {
@@ -731,20 +807,6 @@ function App() {
     window.addEventListener("appinstalled", () => setInstallPrompt(null));
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
-
-  /* ── Infinite scroll ── */
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) setPage((p) => p + 1);
-      },
-      { rootMargin: "300px" },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [loading]);
 
   /* ── Reset pagination quand les filtres changent ── */
   useEffect(() => {
@@ -892,11 +954,11 @@ function App() {
     (l) => getStatut(l) === "disponible",
   ).length;
 
+  const totalPages = Math.ceil(livresFiltres.length / PAGE_SIZE) || 1;
   const livresAffiches = useMemo(
-    () => livresFiltres.slice(0, page * PAGE_SIZE),
+    () => livresFiltres.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [livresFiltres, page],
   );
-  const hasMore = livresAffiches.length < livresFiltres.length;
 
   const handleInstall = useCallback(async () => {
     if (!installPrompt) return;
@@ -1270,7 +1332,7 @@ function App() {
                 />
               ))}
             </div>
-            {hasMore && <div ref={sentinelRef} className="h-4 mt-4" />}
+            <Pagination page={page} totalPages={totalPages} setPage={setPage} />
           </>
         ) : (
           <>
@@ -1283,7 +1345,7 @@ function App() {
                 />
               ))}
             </div>
-            {hasMore && <div ref={sentinelRef} className="h-4 mt-4" />}
+            <Pagination page={page} totalPages={totalPages} setPage={setPage} />
           </>
         )}
       </main>
