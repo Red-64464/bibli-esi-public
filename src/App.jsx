@@ -753,7 +753,7 @@ function HorairesSection({ status }) {
 
 function HorairesPage({ status, onBack }) {
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    <main className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex-1">
       <button
         type="button"
         onClick={onBack}
@@ -1105,48 +1105,117 @@ function App() {
 
   /* ── Render ── */
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh overflow-x-hidden flex flex-col">
       {/* ── Header ── */}
-      <header className="bg-biblio-card border-b border-white/10 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          {/* Logo mobile */}
-          <div className="flex items-center gap-2 mb-3 sm:hidden">
-            <img src="/logo.png" alt="Bibl'ESI" className="h-9 w-auto" />
-          </div>
+      <header className="bg-biblio-card/95 border-b border-white/10 sticky top-0 z-30 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={goToCatalogue}
+              className="flex min-w-0 items-center gap-3 text-left"
+              aria-label="Retour au catalogue Bibl'ESI"
+            >
+              <img
+                src="/logo.png"
+                alt="Bibl'ESI"
+                className="h-9 w-auto flex-shrink-0 sm:h-10"
+              />
+              <span className="hidden min-w-0 sm:block">
+                <span className="block truncate text-sm font-black text-biblio-text">
+                  Bibl’ESI
+                </span>
+                <span className="block truncate text-xs font-medium text-biblio-muted">
+                  Catalogue de la bibliothèque
+                </span>
+              </span>
+            </button>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {/* Logo desktop */}
-            <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
-              <img src="/logo.png" alt="Bibl'ESI" className="h-11 w-auto" />
-              <div className="w-px h-6 bg-white/10" />
-              <h1 className="text-lg font-semibold text-biblio-muted whitespace-nowrap">
-                {pageView === "horaires"
-                  ? "Horaires de la bibliothèque"
-                  : "Catalogue de la bibliothèque"}
-              </h1>
-            </div>
+            <div className="flex items-center gap-2">
+              <div className="hidden rounded-xl border border-white/10 bg-white/5 p-1 sm:flex">
+                <button
+                  type="button"
+                  onClick={goToCatalogue}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                    pageView === "catalogue"
+                      ? "bg-biblio-accent text-white shadow-sm"
+                      : "text-biblio-muted hover:bg-white/10 hover:text-biblio-text"
+                  }`}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Catalogue
+                </button>
+                <button
+                  type="button"
+                  onClick={goToHours}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                    pageView === "horaires"
+                      ? "bg-biblio-accent text-white shadow-sm"
+                      : "text-biblio-muted hover:bg-white/10 hover:text-biblio-text"
+                  }`}
+                >
+                  <Clock className="h-4 w-4" />
+                  Horaires
+                </button>
+              </div>
 
-            {/* Barre de recherche + actions */}
-            <div className="flex gap-2 w-full sm:ml-auto sm:max-w-xl">
               <button
                 type="button"
                 onClick={pageView === "horaires" ? goToCatalogue : goToHours}
-                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors flex-shrink-0 ${
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-medium transition-colors sm:hidden ${
                   pageView === "horaires"
                     ? "bg-biblio-accent border-biblio-accent text-white"
                     : "bg-white/5 border-white/10 text-biblio-muted hover:text-biblio-text hover:bg-white/10"
                 }`}
+                aria-label={pageView === "horaires" ? "Voir le catalogue" : "Voir les horaires"}
               >
                 <Clock className="w-4 h-4" />
-                <span className="hidden sm:inline">
-                  {pageView === "horaires" ? "Catalogue" : "Horaires"}
-                </span>
               </button>
 
+              {/* Thème clair / sombre */}
+              <button
+                onClick={() =>
+                  setTheme((t) => (t === "dark" ? "light" : "dark"))
+                }
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-biblio-muted hover:text-biblio-text hover:bg-white/10 transition-colors flex-shrink-0"
+                aria-label="Basculer le thème"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Installer l'appli (PWA) */}
+              {installPrompt && (
+                <button
+                  onClick={handleInstall}
+                  className="hidden items-center gap-1.5 rounded-xl bg-biblio-accent px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-biblio-accent-hover sm:inline-flex"
+                  aria-label="Installer l'application"
+                >
+                  <Download className="w-4 h-4" />
+                  Installer
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Barre catalogue : recherche + filtres + tri */}
+          <div className="min-h-0">
+            <div
+              className={`grid transition-[grid-template-rows,opacity] duration-200 ${
+                pageView === "catalogue"
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="mt-3 flex w-full flex-col gap-2 sm:flex-row sm:items-center">
               {pageView === "catalogue" && (
                 <>
                   {/* Recherche avec autocomplete */}
-                  <div className="relative flex-1" ref={searchRef}>
+                  <div className="relative min-w-0 flex-1" ref={searchRef}>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-biblio-muted pointer-events-none" />
                     <input
                       type="text"
@@ -1229,33 +1298,8 @@ function App() {
                   </div>
                 </>
               )}
-
-              {/* Thème clair / sombre */}
-              <button
-                onClick={() =>
-                  setTheme((t) => (t === "dark" ? "light" : "dark"))
-                }
-                className="p-2.5 rounded-lg bg-white/5 border border-white/10 text-biblio-muted hover:text-biblio-text hover:bg-white/10 transition-colors flex-shrink-0"
-                aria-label="Basculer le thème"
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
-                )}
-              </button>
-
-              {/* Installer l'appli (PWA) */}
-              {installPrompt && (
-                <button
-                  onClick={handleInstall}
-                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-biblio-accent hover:bg-biblio-accent-hover text-white text-sm font-medium transition-colors flex-shrink-0"
-                  aria-label="Installer l'application"
-                >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">Installer</span>
-                </button>
-              )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1389,7 +1433,7 @@ function App() {
       {pageView === "horaires" ? (
         <HorairesPage status={hoursStatus} onBack={goToCatalogue} />
       ) : (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
         {/* Compteur + toggle grille/liste */}
         <div className="flex items-center justify-between gap-2 mb-6">
           <div className="flex items-center gap-2 text-biblio-muted text-sm min-w-0">
@@ -1454,7 +1498,7 @@ function App() {
             </div>
           )
         ) : livresFiltres.length === 0 ? (
-          <div className="text-center py-24 flex flex-col items-center gap-4">
+          <div className="min-h-[42vh] text-center py-20 flex flex-col items-center justify-center gap-4">
             <BookOpen className="w-14 h-14 text-biblio-muted/20" />
             <div>
               <p className="font-medium text-biblio-text mb-1">
@@ -1509,7 +1553,7 @@ function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-white/10 py-8 mt-4">
+      <footer className="border-t border-white/10 py-8 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <p className="text-center text-xs text-biblio-muted">
             Bibl’ESI — Bibliothèque étudiante de l’ESI

@@ -21,11 +21,18 @@ body,
   overflow-x: hidden;
 }
 
+html {
+  scrollbar-gutter: stable;
+  overscroll-behavior-y: none;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
+  min-width: 320px;
+  min-height: 100dvh;
   background-color: var(--color-biblio-bg);
   color: var(--color-biblio-text);
   font-family:
