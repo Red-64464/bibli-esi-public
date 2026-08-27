@@ -430,15 +430,14 @@ function formatHeure(str) {
   return m === "00" ? `${h}h00` : `${h}h${m}`;
 }
 
-/* ─── Composant Horaires ─────────────────────────────────────────── */
+/* ─── Horaires partagés ─────────────────────────────────────────── */
 
-function HorairesSection() {
+function useLibraryHoursStatus() {
   const [hoursMap, setHoursMap] = useState(null); // { lundi: {ouvert,debut,fin}, ... }
   const [isClosed, setIsClosed] = useState(false);
   const [closedMsg, setClosedMsg] = useState("");
   const [now, setNow] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
 
   /* Tick toutes les minutes */
   useEffect(() => {
@@ -526,13 +525,92 @@ function HorairesSection() {
     return null;
   }, [todayData, isClosed, now]);
 
+  return {
+    loading,
+    hoursMap,
+    isClosed,
+    closedMsg,
+    todayIdx,
+    isOpen,
+    prochainEvenement,
+  };
+}
+
+function FloatingHoursStatus({ status }) {
+  const { loading, hoursMap, isClosed, isOpen, prochainEvenement } = status;
+
+  if (loading) return null;
+  if (!hoursMap || Object.keys(hoursMap).length === 0) return null;
+
+  const scrollToHours = () => {
+    document
+      .getElementById("horaires-bibliotheque")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const label = isClosed
+    ? "Bibliothèque fermée"
+    : isOpen
+      ? "Bibliothèque ouverte"
+      : "Bibliothèque fermée";
+  const detail = isClosed
+    ? "Voir les horaires"
+    : prochainEvenement
+      ? prochainEvenement.type === "ferme"
+        ? `Ferme à ${prochainEvenement.heure}`
+        : `Ouvre à ${prochainEvenement.heure}`
+      : "Voir les horaires";
+
+  return (
+    <button
+      type="button"
+      onClick={scrollToHours}
+      className="fixed bottom-5 left-4 z-40 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-biblio-card/95 px-4 py-3 text-left shadow-2xl shadow-black/25 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-biblio-accent/40 hover:shadow-biblio-accent/10 focus:outline-none focus:ring-2 focus:ring-biblio-accent sm:bottom-6 sm:left-6"
+      aria-label={`${label}. Aller aux horaires`}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className={`relative flex h-3 w-3 flex-shrink-0 rounded-full ${
+            isOpen && !isClosed ? "bg-green-400" : "bg-red-400"
+          }`}
+        >
+          {isOpen && !isClosed && (
+            <span className="absolute inset-0 rounded-full bg-green-400 animate-ping" />
+          )}
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold leading-tight text-biblio-text">
+            {label}
+          </p>
+          <p className="text-xs leading-tight text-biblio-muted">{detail}</p>
+        </div>
+        <Clock className="h-4 w-4 flex-shrink-0 text-biblio-accent" />
+      </div>
+    </button>
+  );
+}
+
+/* ─── Composant Horaires ─────────────────────────────────────────── */
+
+function HorairesSection({ status }) {
+  const {
+    loading,
+    hoursMap,
+    isClosed,
+    closedMsg,
+    todayIdx,
+    isOpen,
+    prochainEvenement,
+  } = status;
+  const [collapsed, setCollapsed] = useState(false);
+
   if (loading) return null;
   if (!hoursMap || Object.keys(hoursMap).length === 0) return null;
 
   const fermetureExcep = isClosed;
 
   return (
-    <section className="mb-8">
+    <section id="horaires-bibliotheque" className="mb-8 scroll-mt-24">
       <div className="bg-biblio-card border border-white/10 rounded-2xl overflow-hidden">
         {/* En-tête cliquable */}
         <button
@@ -781,6 +859,7 @@ function App() {
   const [page, setPage] = useState(1);
   const [installPrompt, setInstallPrompt] = useState(null);
   const searchRef = useRef(null);
+  const hoursStatus = useLibraryHoursStatus();
 
   /* ── Thème ── */
   useEffect(() => {
@@ -1352,12 +1431,14 @@ function App() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 mt-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <HorairesSection />
+          <HorairesSection status={hoursStatus} />
           <p className="text-center text-xs text-biblio-muted">
             Bibl’ESI — Bibliothèque étudiante de l’ESI
           </p>
         </div>
       </footer>
+
+      <FloatingHoursStatus status={hoursStatus} />
 
       {/* Scroll to top */}
       {scrollY > 300 && (
