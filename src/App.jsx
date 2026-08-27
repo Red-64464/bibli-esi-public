@@ -536,17 +536,11 @@ function useLibraryHoursStatus() {
   };
 }
 
-function FloatingHoursStatus({ status }) {
+function FloatingHoursStatus({ status, onOpenHours }) {
   const { loading, hoursMap, isClosed, isOpen, prochainEvenement } = status;
 
   if (loading) return null;
   if (!hoursMap || Object.keys(hoursMap).length === 0) return null;
-
-  const scrollToHours = () => {
-    document
-      .getElementById("horaires-bibliotheque")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   const label = isClosed
     ? "Bibliothèque fermée"
@@ -564,9 +558,9 @@ function FloatingHoursStatus({ status }) {
   return (
     <button
       type="button"
-      onClick={scrollToHours}
+      onClick={onOpenHours}
       className="fixed bottom-5 left-4 z-40 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-biblio-card/95 px-4 py-3 text-left shadow-2xl shadow-black/25 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-biblio-accent/40 hover:shadow-biblio-accent/10 focus:outline-none focus:ring-2 focus:ring-biblio-accent sm:bottom-6 sm:left-6"
-      aria-label={`${label}. Aller aux horaires`}
+      aria-label={`${label}. Ouvrir la page des horaires`}
     >
       <div className="flex items-center gap-3">
         <span
@@ -757,6 +751,43 @@ function HorairesSection({ status }) {
   );
 }
 
+function HorairesPage({ status, onBack }) {
+  return (
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-biblio-muted transition-colors hover:bg-white/10 hover:text-biblio-text"
+      >
+        ← Retour au catalogue
+      </button>
+
+      <div className="mb-6 rounded-3xl border border-white/10 bg-gradient-to-br from-biblio-accent/20 via-biblio-card to-biblio-card p-6 sm:p-8 shadow-2xl shadow-black/10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-biblio-accent">
+              Bibl’ESI
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-black text-biblio-text">
+              Horaires d&apos;ouverture
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-biblio-muted">
+              Consultez rapidement si la bibliothèque est ouverte aujourd’hui,
+              puis gardez le pop-up comme rappel discret pendant votre
+              navigation.
+            </p>
+          </div>
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-biblio-accent/15 text-biblio-accent">
+            <Clock className="h-7 w-7" />
+          </div>
+        </div>
+      </div>
+
+      <HorairesSection status={status} />
+    </main>
+  );
+}
+
 /* ─── Pagination ────────────────────────────────────────────────── */
 
 function Pagination({ page, totalPages, setPage }) {
@@ -860,6 +891,21 @@ function App() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const searchRef = useRef(null);
   const hoursStatus = useLibraryHoursStatus();
+  const [pageView, setPageView] = useState(() =>
+    window.location.hash === "#horaires" ? "horaires" : "catalogue",
+  );
+
+  const goToCatalogue = useCallback(() => {
+    window.location.hash = "catalogue";
+    setPageView("catalogue");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const goToHours = useCallback(() => {
+    window.location.hash = "horaires";
+    setPageView("horaires");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   /* ── Thème ── */
   useEffect(() => {
@@ -897,6 +943,15 @@ function App() {
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  /* ── Navigation simple catalogue / horaires ── */
+  useEffect(() => {
+    const onHashChange = () => {
+      setPageView(window.location.hash === "#horaires" ? "horaires" : "catalogue");
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   /* ── Chargement Supabase, sans Realtime public pour proteger la base ── */
@@ -1065,94 +1120,115 @@ function App() {
               <img src="/logo.png" alt="Bibl'ESI" className="h-11 w-auto" />
               <div className="w-px h-6 bg-white/10" />
               <h1 className="text-lg font-semibold text-biblio-muted whitespace-nowrap">
-                Catalogue de la bibliothèque
+                {pageView === "horaires"
+                  ? "Horaires de la bibliothèque"
+                  : "Catalogue de la bibliothèque"}
               </h1>
             </div>
 
             {/* Barre de recherche + actions */}
             <div className="flex gap-2 w-full sm:ml-auto sm:max-w-xl">
-              {/* Recherche avec autocomplete */}
-              <div className="relative flex-1" ref={searchRef}>
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-biblio-muted pointer-events-none" />
-                <input
-                  type="text"
-                  value={recherche}
-                  onChange={(e) => setRecherche(e.target.value)}
-                  onFocus={() =>
-                    suggestions.length > 0 && setShowSuggestions(true)
-                  }
-                  onBlur={() =>
-                    setTimeout(() => setShowSuggestions(false), 150)
-                  }
-                  placeholder="Titre, auteur, ISBN…"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-9 py-2.5 text-biblio-text placeholder-biblio-muted focus:outline-none focus:ring-2 focus:ring-biblio-accent text-sm"
-                />
-                {recherche && (
-                  <button
-                    onClick={() => setRecherche("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-biblio-muted hover:text-biblio-text transition-colors"
-                    aria-label="Effacer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                {/* Dropdown suggestions */}
-                {showSuggestions && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-biblio-card border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
-                    {suggestions.map((s) => (
-                      <button
-                        key={s.id}
-                        onMouseDown={() => {
-                          setRecherche(s.titre);
-                          setShowSuggestions(false);
-                        }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
-                      >
-                        <p className="text-sm text-biblio-text leading-tight">
-                          {s.titre}
-                        </p>
-                        {s.auteur && (
-                          <p className="text-xs text-biblio-muted">
-                            {s.auteur}
-                          </p>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Bouton filtres */}
               <button
-                onClick={() => setShowFilters(!showFilters)}
+                type="button"
+                onClick={pageView === "horaires" ? goToCatalogue : goToHours}
                 className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors flex-shrink-0 ${
-                  showFilters || hasActiveFilters
+                  pageView === "horaires"
                     ? "bg-biblio-accent border-biblio-accent text-white"
                     : "bg-white/5 border-white/10 text-biblio-muted hover:text-biblio-text hover:bg-white/10"
                 }`}
-                aria-label="Filtres"
               >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span className="hidden sm:inline">Filtres</span>
-                {hasActiveFilters && (
-                  <span className="w-2 h-2 bg-white rounded-full" />
-                )}
+                <Clock className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  {pageView === "horaires" ? "Catalogue" : "Horaires"}
+                </span>
               </button>
 
-              {/* Tri */}
-              <div className="relative flex-shrink-0">
-                <select
-                  value={tri}
-                  onChange={(e) => setTri(e.target.value)}
-                  className="appearance-none bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2.5 text-biblio-text text-sm focus:outline-none focus:ring-2 focus:ring-biblio-accent cursor-pointer"
-                >
-                  <option value="titre">A → Z</option>
-                  <option value="auteur">Auteur</option>
-                  <option value="annee">Nouveautés</option>
-                  <option value="popularite">Popularité</option>
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-biblio-muted pointer-events-none" />
-              </div>
+              {pageView === "catalogue" && (
+                <>
+                  {/* Recherche avec autocomplete */}
+                  <div className="relative flex-1" ref={searchRef}>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-biblio-muted pointer-events-none" />
+                    <input
+                      type="text"
+                      value={recherche}
+                      onChange={(e) => setRecherche(e.target.value)}
+                      onFocus={() =>
+                        suggestions.length > 0 && setShowSuggestions(true)
+                      }
+                      onBlur={() =>
+                        setTimeout(() => setShowSuggestions(false), 150)
+                      }
+                      placeholder="Titre, auteur, ISBN…"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-9 py-2.5 text-biblio-text placeholder-biblio-muted focus:outline-none focus:ring-2 focus:ring-biblio-accent text-sm"
+                    />
+                    {recherche && (
+                      <button
+                        onClick={() => setRecherche("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-biblio-muted hover:text-biblio-text transition-colors"
+                        aria-label="Effacer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {/* Dropdown suggestions */}
+                    {showSuggestions && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-biblio-card border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+                        {suggestions.map((s) => (
+                          <button
+                            key={s.id}
+                            onMouseDown={() => {
+                              setRecherche(s.titre);
+                              setShowSuggestions(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                          >
+                            <p className="text-sm text-biblio-text leading-tight">
+                              {s.titre}
+                            </p>
+                            {s.auteur && (
+                              <p className="text-xs text-biblio-muted">
+                                {s.auteur}
+                              </p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bouton filtres */}
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors flex-shrink-0 ${
+                      showFilters || hasActiveFilters
+                        ? "bg-biblio-accent border-biblio-accent text-white"
+                        : "bg-white/5 border-white/10 text-biblio-muted hover:text-biblio-text hover:bg-white/10"
+                    }`}
+                    aria-label="Filtres"
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                    <span className="hidden sm:inline">Filtres</span>
+                    {hasActiveFilters && (
+                      <span className="w-2 h-2 bg-white rounded-full" />
+                    )}
+                  </button>
+
+                  {/* Tri */}
+                  <div className="relative flex-shrink-0">
+                    <select
+                      value={tri}
+                      onChange={(e) => setTri(e.target.value)}
+                      className="appearance-none bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2.5 text-biblio-text text-sm focus:outline-none focus:ring-2 focus:ring-biblio-accent cursor-pointer"
+                    >
+                      <option value="titre">A → Z</option>
+                      <option value="auteur">Auteur</option>
+                      <option value="annee">Nouveautés</option>
+                      <option value="popularite">Popularité</option>
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-biblio-muted pointer-events-none" />
+                  </div>
+                </>
+              )}
 
               {/* Thème clair / sombre */}
               <button
@@ -1185,7 +1261,7 @@ function App() {
         </div>
 
         {/* ── Panneau filtres ── */}
-        {showFilters && (
+        {pageView === "catalogue" && showFilters && (
           <div className="border-t border-white/10 bg-biblio-bg/60 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
               <div className="flex flex-wrap gap-4 items-end">
@@ -1310,6 +1386,9 @@ function App() {
       </header>
 
       {/* ── Contenu principal ── */}
+      {pageView === "horaires" ? (
+        <HorairesPage status={hoursStatus} onBack={goToCatalogue} />
+      ) : (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Compteur + toggle grille/liste */}
         <div className="flex items-center justify-between gap-2 mb-6">
@@ -1427,18 +1506,20 @@ function App() {
           </>
         )}
       </main>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 mt-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <HorairesSection status={hoursStatus} />
           <p className="text-center text-xs text-biblio-muted">
             Bibl’ESI — Bibliothèque étudiante de l’ESI
           </p>
         </div>
       </footer>
 
-      <FloatingHoursStatus status={hoursStatus} />
+      {pageView === "catalogue" && (
+        <FloatingHoursStatus status={hoursStatus} onOpenHours={goToHours} />
+      )}
 
       {/* Scroll to top */}
       {scrollY > 300 && (
