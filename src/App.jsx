@@ -384,7 +384,7 @@ function BookModal({ livre, onClose }) {
 
 /* ─── Horaires helpers ───────────────────────────────────────────── */
 /*
-  Lit depuis la table "settings" (key/value) :
+  Lit depuis la table "bibli_public_settings" (key/value) :
     library_hours        → JSON {"lundi":{"ouvert":true,"debut":"08:00","fin":"17:00"}, ...}
     library_is_closed    → "true" | "false"
     library_closed_message → texte libre (ou "EMPTY")
@@ -449,7 +449,7 @@ function HorairesSection() {
     const fetchAll = async () => {
       try {
         const { data } = await supabase
-          .from("settings")
+          .from("bibli_public_settings")
           .select("key,value")
           .in("key", [
             "library_hours",
@@ -488,7 +488,7 @@ function HorairesSection() {
       .channel("settings-horaires-rt")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "settings" },
+        { event: "*", schema: "public", table: "bibli_public_settings" },
         fetchAll,
       )
       .subscribe();
@@ -825,7 +825,7 @@ function App() {
     const fetchLivres = async () => {
       try {
         const { data, error } = await supabase
-          .from("livres")
+          .from("bibli_public_livres")
           .select("*")
           .order("titre", { ascending: true });
         if (error) throw error;
@@ -844,7 +844,7 @@ function App() {
       .channel("livres-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "livres" },
+        { event: "*", schema: "public", table: "bibli_public_livres" },
         () => fetchLivres(),
       )
       .subscribe();
