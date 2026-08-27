@@ -1,4 +1,4 @@
-const CACHE_NAME = "bibli-esi-v1";
+const CACHE_NAME = "bibli-esi-v2";
 const OFFLINE_PAGE = "/offline.html";
 const PRECACHE_URLS = [OFFLINE_PAGE, "/", "/logo.png"];
 
@@ -60,14 +60,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (JS/CSS): network-first with cache fallback
-  event.respondWith(
-    fetch(request)
-      .then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((c) => c.put(request, clone));
-        return res;
-      })
-      .catch(() => caches.match(request)),
-  );
+  // Static assets (JS/CSS): cache-first because Vite filenames are hashed.
+  if (["script", "style", "font"].includes(request.destination)) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((res) => {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+
+  event.respondWith(fetch(request).catch(() => caches.match(request)));
 });

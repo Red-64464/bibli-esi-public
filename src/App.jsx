@@ -24,6 +24,10 @@ import {
 } from "lucide-react";
 
 const PAGE_SIZE = 24;
+const PUBLIC_BOOK_COLUMNS =
+  "id,titre,sous_titre,auteur,isbn,editeur,annee,langue,categorie,tags,resume,description,emplacement,nb_exemplaires,exemplaires_total,exemplaires_disponibles,statut,disponible,couverture_url,date_ajout";
+const PUBLIC_SETTINGS_REFRESH_MS = 60_000;
+const PUBLIC_BOOKS_REFRESH_MS = 60_000;
 
 /* ─── Helpers statut ────────────────────────────────────────────── */
 
@@ -442,7 +446,7 @@ function HorairesSection() {
     return () => clearInterval(id);
   }, []);
 
-  /* Chargement + temps réel depuis settings */
+  /* Chargement regulier depuis settings, sans connexion Realtime par visiteur */
   useEffect(() => {
     let cancelled = false;
 
@@ -484,18 +488,14 @@ function HorairesSection() {
 
     fetchAll();
 
-    const ch = supabase
-      .channel("settings-horaires-rt")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "bibli_public_settings" },
-        fetchAll,
-      )
-      .subscribe();
+    const intervalId = setInterval(fetchAll, PUBLIC_SETTINGS_REFRESH_MS);
+    const onFocus = () => fetchAll();
+    window.addEventListener("focus", onFocus);
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(ch);
+      clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
@@ -820,36 +820,35 @@ function App() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  /* ── Chargement Supabase ── */
+  /* ── Chargement Supabase, sans Realtime public pour proteger la base ── */
   useEffect(() => {
+    let cancelled = false;
+
     const fetchLivres = async () => {
       try {
         const { data, error } = await supabase
           .from("bibli_public_livres")
-          .select("*")
+          .select(PUBLIC_BOOK_COLUMNS)
           .order("titre", { ascending: true });
         if (error) throw error;
-        setLivres(data || []);
+        if (!cancelled) setLivres(data || []);
       } catch (err) {
         console.error("Erreur chargement livres:", err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchLivres();
+    const intervalId = setInterval(fetchLivres, PUBLIC_BOOKS_REFRESH_MS);
+    const onFocus = () => fetchLivres();
+    window.addEventListener("focus", onFocus);
 
-    // Temps réel
-    const channel = supabase
-      .channel("livres-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "bibli_public_livres" },
-        () => fetchLivres(),
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   /* ── Suggestions de recherche ── */
