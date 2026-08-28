@@ -45,22 +45,22 @@ function getStatut(livre) {
 const STATUT_CONFIG = {
   disponible: {
     label: "Disponible",
-    dot: "bg-green-400",
-    badge: "bg-green-500/20 text-green-400 border border-green-500/30",
+    dot: "bg-emerald-950",
+    badge: "bg-emerald-400 text-emerald-950 border border-emerald-200 shadow-md shadow-emerald-950/30",
     pill: "bg-green-500/10 border-green-500/20 text-green-400",
     Icon: CheckCircle,
   },
   emprunte: {
     label: "Emprunté",
-    dot: "bg-red-400",
-    badge: "bg-red-500/20 text-red-400 border border-red-500/30",
+    dot: "bg-red-950",
+    badge: "bg-red-400 text-red-950 border border-red-200 shadow-md shadow-red-950/30",
     pill: "bg-red-500/10 border-red-500/20 text-red-400",
     Icon: XCircle,
   },
   reserve: {
     label: "Réservé",
-    dot: "bg-yellow-400",
-    badge: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
+    dot: "bg-amber-950",
+    badge: "bg-amber-400 text-amber-950 border border-amber-200 shadow-md shadow-amber-950/30",
     pill: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400",
     Icon: Clock,
   },
