@@ -21,6 +21,9 @@ import {
   Download,
   AlertTriangle,
   ChevronUp,
+  Users,
+  MapPin,
+  PlayCircle,
 } from "lucide-react";
 
 const PAGE_SIZE = 24;
@@ -486,6 +489,12 @@ function useLibraryHoursStatus() {
     };
 
     fetchAll();
+    const channel = supabase
+      .channel("public-hours-live")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bibli_settings" }, (payload) => {
+        if (["library_hours", "library_is_closed", "library_closed_message"].includes(payload.new?.key)) fetchAll();
+      })
+      .subscribe();
 
     const intervalId = setInterval(fetchAll, PUBLIC_SETTINGS_REFRESH_MS);
     const onFocus = () => fetchAll();
@@ -495,6 +504,7 @@ function useLibraryHoursStatus() {
       cancelled = true;
       clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -534,6 +544,85 @@ function useLibraryHoursStatus() {
     isOpen,
     prochainEvenement,
   };
+}
+
+function useVisitorInfo() {
+  const [info, setInfo] = useState({ capacity: 3, occupancy: 0, videoUrl: "", videoTitle: "Comment venir à la bibliothèque" });
+
+  useEffect(() => {
+    let cancelled = false;
+    let realtimeTimer = null;
+    const load = async () => {
+      const { data } = await supabase
+        .from("bibli_public_settings")
+        .select("key,value")
+        .in("key", ["library_capacity", "library_current_occupancy", "library_arrival_video_url", "library_arrival_video_title"]);
+      if (!cancelled && data) {
+        const row = Object.fromEntries(data.map((item) => [item.key, item.value]));
+        const nextCapacity = Math.max(1, Number.parseInt(row.library_capacity || "3", 10) || 3);
+        setInfo({
+          capacity: nextCapacity,
+          occupancy: Math.min(Math.max(0, Number.parseInt(row.library_current_occupancy || "0", 10) || 0), nextCapacity),
+          videoUrl: row.library_arrival_video_url || "",
+          videoTitle: row.library_arrival_video_title || "Comment venir à la bibliothèque",
+        });
+      }
+    };
+    const refreshFromRealtime = () => {
+      clearTimeout(realtimeTimer);
+      // La base est la source unique : on attend la fin de la transaction atomique.
+      realtimeTimer = setTimeout(load, 80);
+    };
+    load();
+    const channel = supabase
+      .channel("public-affluence-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bibli_settings" }, refreshFromRealtime)
+      .subscribe();
+    const id = setInterval(load, PUBLIC_SETTINGS_REFRESH_MS);
+    window.addEventListener("focus", load);
+    return () => { cancelled = true; clearTimeout(realtimeTimer); clearInterval(id); window.removeEventListener("focus", load); supabase.removeChannel(channel); };
+  }, []);
+
+  return info;
+}
+function VisitorInfo({ info }) {
+  const full = info.occupancy >= info.capacity;
+  const almostFull = !full && info.occupancy >= Math.max(1, info.capacity - 1);
+  const status = full
+    ? { title: "Bibliothèque complète", text: "Merci d'attendre avant de venir.", color: "border-red-500/35 bg-red-500/10 text-red-300" }
+    : almostFull
+      ? { title: "Presque complète", text: "Il reste très peu de place.", color: "border-amber-500/35 bg-amber-500/10 text-amber-200" }
+      : { title: "Places disponibles", text: "Vous pouvez venir à la bibliothèque.", color: "border-emerald-500/35 bg-emerald-500/10 text-emerald-200" };
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 mb-6" aria-label="Informations pratiques">
+      <div className={`rounded-xl border p-4 ${status.color}`}>
+        <div className="flex items-start gap-3">
+          <Users className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-sm">{status.title}</p>
+            <p className="text-xs mt-1 opacity-90">{status.text}</p>
+            <p className="text-xs mt-2 font-medium">{Math.min(info.occupancy, info.capacity)} / {info.capacity} personne{info.capacity > 1 ? "s" : ""} présente{info.occupancy > 1 ? "s" : ""}</p>
+          </div>
+        </div>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-biblio-card p-4">
+        <div className="flex items-start gap-3">
+          <MapPin className="w-5 h-5 shrink-0 mt-0.5 text-biblio-accent" />
+          <div className="min-w-0">
+            <p className="font-semibold text-sm text-biblio-text">Trouver la bibliothèque</p>
+            {info.videoUrl ? (
+              <a href={info.videoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs mt-2 text-biblio-accent hover:underline font-medium">
+                <PlayCircle className="w-4 h-4" /> {info.videoTitle}
+              </a>
+            ) : (
+              <p className="text-xs mt-1 text-biblio-muted">La vidéo du trajet sera bientôt disponible.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function FloatingHoursStatus({ status, onOpenHours }) {
@@ -891,6 +980,7 @@ function App() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const searchRef = useRef(null);
   const hoursStatus = useLibraryHoursStatus();
+  const visitorInfo = useVisitorInfo();
   const [pageView, setPageView] = useState(() =>
     window.location.hash === "#horaires" ? "horaires" : "catalogue",
   );
@@ -954,7 +1044,7 @@ function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  /* ── Chargement Supabase, sans Realtime public pour proteger la base ── */
+  /* ── Catalogue live, avec polling de secours si la connexion change ── */
   useEffect(() => {
     let cancelled = false;
 
@@ -974,6 +1064,10 @@ function App() {
     };
 
     fetchLivres();
+    const channel = supabase
+      .channel("public-books-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bibli_livres" }, () => fetchLivres())
+      .subscribe();
     const intervalId = setInterval(fetchLivres, PUBLIC_BOOKS_REFRESH_MS);
     const onFocus = () => fetchLivres();
     window.addEventListener("focus", onFocus);
@@ -982,6 +1076,7 @@ function App() {
       cancelled = true;
       clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -1434,6 +1529,7 @@ function App() {
         <HorairesPage status={hoursStatus} onBack={goToCatalogue} />
       ) : (
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
+        <VisitorInfo info={visitorInfo} />
         {/* Compteur + toggle grille/liste */}
         <div className="flex items-center justify-between gap-2 mb-6">
           <div className="flex items-center gap-2 text-biblio-muted text-sm min-w-0">
