@@ -1,4 +1,4 @@
-const CACHE_NAME = "bibli-esi-v2";
+const CACHE_NAME = "bibli-esi-v3";
 const OFFLINE_PAGE = "/offline.html";
 const PRECACHE_URLS = [OFFLINE_PAGE, "/", "/logo.png"];
 
@@ -42,17 +42,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (["image", "script", "style", "font"].includes(request.destination)) {
+  if (["script", "style", "font"].includes(request.destination)) {
     event.respondWith(
-      caches.match(request).then(
-        (cached) =>
-          cached ||
-          fetch(request).then((res) => {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-            return res;
-          }),
-      ),
+      fetch(request)
+        .then((res) => {
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(request)),
+    );
+    return;
+  }
+
+  if (request.destination === "image") {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request).then((res) => {
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, res.clone()));
+        return res;
+      })),
     );
     return;
   }
