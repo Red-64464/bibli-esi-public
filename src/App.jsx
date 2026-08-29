@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { supabase } from "./lib/supabase";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   readPracticalInfo,
   readPublicCatalogue,
@@ -37,6 +38,20 @@ const PUBLIC_BOOK_COLUMNS =
   "id,titre,sous_titre,auteur,isbn,editeur,annee,langue,categorie,tags,resume,description,emplacement,nb_exemplaires,exemplaires_total,exemplaires_disponibles,statut,disponible,couverture_url,date_ajout";
 const PUBLIC_SETTINGS_REFRESH_MS = 60_000;
 const PUBLIC_BOOKS_REFRESH_MS = 60_000;
+
+async function fetchPublicCatalogue() {
+  const { data, error } = await supabase
+    .from("bibli_public_livres")
+    .select(PUBLIC_BOOK_COLUMNS)
+    .order("titre", { ascending: true });
+  if (!error) {
+    writePublicCatalogue(data || []).catch(() => {});
+    return { data: data || [], offline: false };
+  }
+  const cached = await readPublicCatalogue().catch(() => null);
+  if (cached) return { data: cached, offline: true };
+  throw error;
+}
 
 /* ─── Helpers statut ────────────────────────────────────────────── */
 
@@ -980,9 +995,18 @@ function Pagination({ page, totalPages, setPage }) {
 /* ─── App principale ────────────────────────────────────────────── */
 
 function App() {
-  const [livres, setLivres] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [offlineCatalogue, setOfflineCatalogue] = useState(false);
+  const queryClient = useQueryClient();
+  const {
+    data: catalogueResult,
+    isLoading: loading,
+    isError: catalogueError,
+  } = useQuery({
+    queryKey: ["public-catalogue"],
+    queryFn: fetchPublicCatalogue,
+    refetchInterval: PUBLIC_BOOKS_REFRESH_MS,
+  });
+  const livres = catalogueResult?.data || [];
+  const offlineCatalogue = catalogueResult?.offline === true;
   const [recherche, setRecherche] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -1068,50 +1092,27 @@ function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  /* ── Catalogue live, avec polling de secours si la connexion change ── */
+  /* ── Catalogue live : Query gère le cache, Realtime invalide la requête ── */
   useEffect(() => {
-    let cancelled = false;
-
-    const fetchLivres = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("bibli_public_livres")
-          .select(PUBLIC_BOOK_COLUMNS)
-          .order("titre", { ascending: true });
-        if (error) throw error;
-        if (!cancelled) {
-          setLivres(data || []);
-          setOfflineCatalogue(false);
-          writePublicCatalogue(data || []).catch(() => {});
-        }
-      } catch (err) {
-        console.error("Erreur chargement livres:", err.message);
-        const cachedBooks = await readPublicCatalogue().catch(() => null);
-        if (!cancelled && cachedBooks) {
-          setLivres(cachedBooks);
-          setOfflineCatalogue(true);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    let timer;
+    const invalidateCatalogue = () => {
+      clearTimeout(timer);
+      timer = setTimeout(
+        () => queryClient.invalidateQueries({ queryKey: ["public-catalogue"] }),
+        120,
+      );
     };
-
-    fetchLivres();
     const channel = supabase
       .channel("public-books-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "bibli_livres" }, () => fetchLivres())
+      .on("postgres_changes", { event: "*", schema: "public", table: "bibli_livres" }, invalidateCatalogue)
+      .on("broadcast", { event: "catalogue_changed" }, invalidateCatalogue)
       .subscribe();
-    const intervalId = setInterval(fetchLivres, PUBLIC_BOOKS_REFRESH_MS);
-    const onFocus = () => fetchLivres();
-    window.addEventListener("focus", onFocus);
 
     return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-      window.removeEventListener("focus", onFocus);
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [queryClient]);
 
   /* ── Suggestions de recherche ── */
   useEffect(() => {
@@ -1237,6 +1238,11 @@ function App() {
       {offlineCatalogue && (
         <div className="bg-amber-500/15 border-b border-amber-400/30 px-4 py-2 text-center text-xs font-medium text-amber-200" role="status">
           Mode hors connexion : catalogue enregistré sur cet appareil. Les données peuvent être anciennes.
+        </div>
+      )}
+      {catalogueError && !livres.length && (
+        <div className="bg-red-500/15 border-b border-red-400/30 px-4 py-2 text-center text-xs font-medium text-red-200" role="alert">
+          Le catalogue est temporairement indisponible. Vérifiez votre connexion puis réessayez.
         </div>
       )}
       {/* ── Header ── */}
