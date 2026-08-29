@@ -172,14 +172,13 @@ function BookCard({ livre, onClick }) {
         ) : (
           <BookOpen className="w-10 h-10 text-biblio-muted/30" />
         )}
-        {/* Statut overlay */}
-        <div className="absolute top-2 left-2">
-          <StatutBadge livre={livre} />
-        </div>
       </div>
 
       {/* Infos */}
       <div className="p-3 flex-1 flex flex-col gap-1">
+        <div className="mb-1 self-start">
+          <StatutBadge livre={livre} />
+        </div>
         <h3 className="font-semibold text-sm text-biblio-text line-clamp-2 leading-tight">
           {livre.titre}
         </h3>
