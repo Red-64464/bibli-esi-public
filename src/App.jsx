@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 import {
+  readPracticalInfo,
+  readPublicCatalogue,
+  writePracticalInfo,
+  writePublicCatalogue,
+} from "./lib/offlineCache";
+import {
   Search,
   BookOpen,
   X,
@@ -464,6 +470,12 @@ function useLibraryHoursStatus() {
 
         if (!cancelled && data) {
           const row = Object.fromEntries(data.map((r) => [r.key, r.value]));
+          const practical = {
+            hours: row.library_hours ?? "{}",
+            isClosed: row.library_is_closed === "true",
+            closedMsg: row.library_closed_message === "EMPTY" ? "" : row.library_closed_message ?? "",
+          };
+          writePracticalInfo(practical).catch(() => {});
 
           // Horaires JSON
           try {
@@ -474,14 +486,18 @@ function useLibraryHoursStatus() {
           }
 
           // Fermeture exceptionnelle
-          setIsClosed(row.library_is_closed === "true");
+          setIsClosed(practical.isClosed);
 
           // Message
-          const msg = row.library_closed_message ?? "";
-          setClosedMsg(msg === "EMPTY" ? "" : msg);
+          setClosedMsg(practical.closedMsg);
         }
       } catch (_) {
-        /* silencieux */
+        const cached = await readPracticalInfo().catch(() => null);
+        if (!cancelled && cached) {
+          try { setHoursMap(JSON.parse(cached.hours || "{}")); } catch { setHoursMap({}); }
+          setIsClosed(Boolean(cached.isClosed));
+          setClosedMsg(cached.closedMsg || "");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -552,19 +568,27 @@ function useVisitorInfo() {
     let cancelled = false;
     let realtimeTimer = null;
     const load = async () => {
-      const { data } = await supabase
-        .from("bibli_public_settings")
-        .select("key,value")
-        .in("key", ["library_capacity", "library_current_occupancy", "library_arrival_video_url", "library_arrival_video_title"]);
-      if (!cancelled && data) {
-        const row = Object.fromEntries(data.map((item) => [item.key, item.value]));
-        const nextCapacity = Math.max(1, Number.parseInt(row.library_capacity || "3", 10) || 3);
-        setInfo({
-          capacity: nextCapacity,
-          occupancy: Math.min(Math.max(0, Number.parseInt(row.library_current_occupancy || "0", 10) || 0), nextCapacity),
-          videoUrl: row.library_arrival_video_url || "",
-          videoTitle: row.library_arrival_video_title || "Comment venir à la bibliothèque",
-        });
+      try {
+        const { data, error } = await supabase
+          .from("bibli_public_settings")
+          .select("key,value")
+          .in("key", ["library_capacity", "library_current_occupancy", "library_arrival_video_url", "library_arrival_video_title"]);
+        if (error) throw error;
+        if (!cancelled && data) {
+          const row = Object.fromEntries(data.map((item) => [item.key, item.value]));
+          const nextCapacity = Math.max(1, Number.parseInt(row.library_capacity || "3", 10) || 3);
+          const nextInfo = {
+            capacity: nextCapacity,
+            occupancy: Math.min(Math.max(0, Number.parseInt(row.library_current_occupancy || "0", 10) || 0), nextCapacity),
+            videoUrl: row.library_arrival_video_url || "",
+            videoTitle: row.library_arrival_video_title || "Comment venir à la bibliothèque",
+          };
+          setInfo(nextInfo);
+          writePracticalInfo({ ...(await readPracticalInfo().catch(() => ({}))), info: nextInfo }).catch(() => {});
+        }
+      } catch (_) {
+        const cached = await readPracticalInfo().catch(() => null);
+        if (!cancelled && cached?.info) setInfo(cached.info);
       }
     };
     const refreshFromRealtime = () => {
@@ -958,6 +982,7 @@ function Pagination({ page, totalPages, setPage }) {
 function App() {
   const [livres, setLivres] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [offlineCatalogue, setOfflineCatalogue] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -1054,9 +1079,18 @@ function App() {
           .select(PUBLIC_BOOK_COLUMNS)
           .order("titre", { ascending: true });
         if (error) throw error;
-        if (!cancelled) setLivres(data || []);
+        if (!cancelled) {
+          setLivres(data || []);
+          setOfflineCatalogue(false);
+          writePublicCatalogue(data || []).catch(() => {});
+        }
       } catch (err) {
         console.error("Erreur chargement livres:", err.message);
+        const cachedBooks = await readPublicCatalogue().catch(() => null);
+        if (!cancelled && cachedBooks) {
+          setLivres(cachedBooks);
+          setOfflineCatalogue(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1200,6 +1234,11 @@ function App() {
   /* ── Render ── */
   return (
     <div className="min-h-dvh overflow-x-hidden flex flex-col">
+      {offlineCatalogue && (
+        <div className="bg-amber-500/15 border-b border-amber-400/30 px-4 py-2 text-center text-xs font-medium text-amber-200" role="status">
+          Mode hors connexion : catalogue enregistré sur cet appareil. Les données peuvent être anciennes.
+        </div>
+      )}
       {/* ── Header ── */}
       <header className="bg-biblio-card/95 border-b border-white/10 sticky top-0 z-30 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
