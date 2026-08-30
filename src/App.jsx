@@ -650,9 +650,18 @@ function VisitorInfo({ info }) {
           <div className="min-w-0">
             <p className="font-semibold text-sm text-biblio-text">Trouver la bibliothèque</p>
             {info.videoUrl ? (
-              <a href={info.videoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs mt-2 text-biblio-accent hover:underline font-medium">
-                <PlayCircle className="w-4 h-4" /> {info.videoTitle}
-              </a>
+              <div className="mt-3 space-y-2">
+                <p className="inline-flex items-center gap-1.5 text-xs font-medium text-biblio-accent">
+                  <PlayCircle className="w-4 h-4" /> {info.videoTitle}
+                </p>
+                <video
+                  src={info.videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="aspect-video w-full rounded-lg border border-white/10 bg-black object-contain"
+                />
+              </div>
             ) : (
               <p className="text-xs mt-1 text-biblio-muted">La vidéo du trajet sera bientôt disponible.</p>
             )}
