@@ -31,7 +31,6 @@ import {
   Users,
   MapPin,
   PlayCircle,
-  ArrowRight,
 } from "lucide-react";
 
 const PAGE_SIZE = 24;
@@ -1034,53 +1033,6 @@ function Pagination({ page, totalPages, setPage }) {
   );
 }
 
-function CatalogueHero({ info, featuredBook, onOpenBook }) {
-  const full = info.occupancy >= info.capacity;
-  const availability = full ? "Bibliothèque complète" : "Places disponibles";
-
-  return (
-    <section className="catalogue-hero" aria-label="Découvrir la bibliothèque">
-      <div className="catalogue-hero-copy">
-        <p className="catalogue-eyebrow">Bibl’ESI · Bibliothèque étudiante</p>
-        <h1>Des livres pour nourrir vos prochaines idées.</h1>
-        <p className="catalogue-hero-text">
-          Recherchez un titre, découvrez le catalogue et préparez votre prochaine lecture.
-        </p>
-        <div className="catalogue-hero-meta">
-          <span className={full ? "hero-status hero-status-full" : "hero-status"}>
-            <Users className="h-4 w-4" />
-            {availability} · {Math.min(info.occupancy, info.capacity)} / {info.capacity}
-          </span>
-          <span className="hero-location"><MapPin className="h-4 w-4" /> ESI</span>
-        </div>
-      </div>
-
-      {featuredBook && (
-        <button
-          type="button"
-          className="catalogue-featured-book"
-          onClick={() => onOpenBook(featuredBook)}
-          aria-label={`Découvrir ${featuredBook.titre}`}
-        >
-          <div className="catalogue-featured-cover">
-            {featuredBook.couverture_url ? (
-              <img src={featuredBook.couverture_url} alt="" />
-            ) : (
-              <BookOpen className="h-12 w-12" />
-            )}
-          </div>
-          <span className="catalogue-featured-copy">
-            <span className="catalogue-featured-label">À découvrir</span>
-            <strong>{featuredBook.titre}</strong>
-            <span>{featuredBook.auteur || "Auteur inconnu"}</span>
-          </span>
-          <ArrowRight className="catalogue-featured-arrow h-5 w-5" />
-        </button>
-      )}
-    </section>
-  );
-}
-
 /* ─── App principale ────────────────────────────────────────────── */
 
 function App() {
@@ -1111,7 +1063,7 @@ function App() {
   const [scrollY, setScrollY] = useState(0);
   const [vue, setVue] = useState(() => localStorage.getItem("vue") || "grille");
   const [theme, setTheme] = useState(
-    () => localStorage.getItem("public-theme-v2") || "light",
+    () => localStorage.getItem("theme") || "dark",
   );
   const [page, setPage] = useState(1);
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -1141,7 +1093,7 @@ function App() {
     } else {
       document.documentElement.classList.remove("theme-light");
     }
-    localStorage.setItem("public-theme-v2", theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   /* ── Vue ── */
@@ -1304,7 +1256,6 @@ function App() {
   const livresDisponibles = livresFiltres.filter(
     (l) => getStatut(l) === "disponible",
   ).length;
-  const featuredBook = livres.find((livre) => livre.couverture_url) || livres[0] || null;
 
   const totalPages = Math.ceil(livresFiltres.length / PAGE_SIZE) || 1;
   const livresAffiches = useMemo(
@@ -1663,11 +1614,7 @@ function App() {
         <HorairesPage status={hoursStatus} onBack={goToCatalogue} />
       ) : (
       <main className="public-main w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
-        <CatalogueHero
-          info={visitorInfo}
-          featuredBook={featuredBook}
-          onOpenBook={setLivreSelectionne}
-        />
+        <VisitorInfo info={visitorInfo} />
         {categories.length > 0 && !recherche && !hasActiveFilters && (
           <section className="public-explore mb-6" aria-label="Explorer le catalogue par catégorie">
             <div className="flex items-center justify-between gap-3">
