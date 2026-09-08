@@ -1659,6 +1659,16 @@ function App() {
                 </span>
               )}
             </span>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-biblio-accent/30 bg-biblio-accent/10 px-2 py-1 text-xs font-semibold text-biblio-accent transition-colors hover:bg-biblio-accent hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+                Effacer le filtre
+              </button>
+            )}
           </div>
           {/* Toggle vue */}
           <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1 flex-shrink-0">
