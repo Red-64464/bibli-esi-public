@@ -114,6 +114,14 @@ button {
   padding-block: 1rem;
 }
 
+.public-explore .overflow-x-auto {
+  scrollbar-width: none;
+}
+
+.public-explore .overflow-x-auto::-webkit-scrollbar {
+  display: none;
+}
+
 .public-category-chip {
   display: inline-flex;
   flex: 0 0 auto;

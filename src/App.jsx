@@ -727,7 +727,7 @@ function FloatingHoursStatus({ status, onOpenHours }) {
     <button
       type="button"
       onClick={onOpenHours}
-      className="fixed bottom-4 left-4 z-40 max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-biblio-card/95 px-4 py-3 text-left shadow-2xl shadow-black/25 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-biblio-accent/40 hover:shadow-biblio-accent/10 focus:outline-none focus:ring-2 focus:ring-biblio-accent md:hidden"
+      className="hidden"
       aria-label={`${label}. Ouvrir la page des horaires`}
     >
       <div className="flex items-center gap-3">
