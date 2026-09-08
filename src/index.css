@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-biblio-bg: #0f172a;
-  --color-biblio-card: #1e293b;
-  --color-biblio-accent: #6366f1;
-  --color-biblio-accent-hover: #818cf8;
-  --color-biblio-text: #f1f5f9;
-  --color-biblio-muted: #94a3b8;
+  --color-biblio-bg: #111718;
+  --color-biblio-card: #1b2425;
+  --color-biblio-accent: #ff5d73;
+  --color-biblio-accent-hover: #ff7890;
+  --color-biblio-text: #f7f4ee;
+  --color-biblio-muted: #a8b3b0;
   --color-biblio-success: #22c55e;
   --color-biblio-danger: #ef4444;
   --color-biblio-warning: #f59e0b;
@@ -40,6 +40,7 @@ body {
     system-ui,
     -apple-system,
     sans-serif;
+  letter-spacing: 0;
 }
 
 img,
@@ -58,6 +59,65 @@ button {
 
 .overflow-x-auto {
   max-width: 100%;
+}
+
+/* Surface publique : contraste calme, densite lisible et interactions stables. */
+.public-shell {
+  background: var(--color-biblio-bg);
+}
+
+.public-header {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.04), 0 10px 28px rgb(0 0 0 / 0.12);
+}
+
+.public-controls input,
+.public-controls select {
+  min-height: 44px;
+}
+
+.public-controls > div:first-child input {
+  background-color: #202a2b;
+  border-color: rgb(255 255 255 / 0.12);
+}
+
+.public-controls > button,
+.public-controls > div > select {
+  min-height: 44px;
+}
+
+.public-info-card {
+  min-height: 116px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.public-book-card {
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.14);
+}
+
+.public-book-card:hover {
+  transform: translateY(-3px) !important;
+}
+
+.public-book-card:focus-within,
+.public-book-card:focus-visible {
+  outline: 2px solid var(--color-biblio-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 639px) {
+  .public-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+  }
+
+  .public-controls > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .public-controls > div:last-child select {
+    width: 100%;
+  }
 }
 
 /* Select stylisé pour le thème sombre */
@@ -88,8 +148,8 @@ html.theme-light {
   --color-biblio-card: #ffffff;
   --color-biblio-text: #1e293b;
   --color-biblio-muted: #64748b;
-  --color-biblio-accent: #4f46e5;
-  --color-biblio-accent-hover: #6366f1;
+  --color-biblio-accent: #e54861;
+  --color-biblio-accent-hover: #c93650;
   color-scheme: light;
 }
 
@@ -108,6 +168,10 @@ html.theme-light .bg-biblio-card {
 html.theme-light .bg-white\/5,
 html.theme-light .bg-white\/10 {
   background-color: rgb(0 0 0 / 0.04) !important;
+}
+
+html.theme-light .public-controls > div:first-child input {
+  background-color: #ffffff;
 }
 html.theme-light .border-white\/10,
 html.theme-light .border-white\/5 {

@@ -138,6 +138,15 @@ function BookListRow({ livre, onClick }) {
   return (
     <div
       onClick={() => onClick(livre)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick(livre);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Voir le détail de ${livre.titre}`}
       className="flex items-center gap-3 bg-biblio-card border border-white/10 rounded-xl px-3 py-2.5 cursor-pointer hover:border-biblio-accent/50 hover:bg-white/5 transition-all"
     >
       <div className="w-9 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
@@ -179,7 +188,16 @@ function BookCard({ livre, onClick }) {
   return (
     <div
       onClick={() => onClick(livre)}
-      className="bg-biblio-card rounded-xl border border-white/10 overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:border-biblio-accent/50 hover:shadow-xl hover:shadow-biblio-accent/10 group"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick(livre);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Voir le détail de ${livre.titre}`}
+      className="public-book-card bg-biblio-card rounded-xl border border-white/10 overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:border-biblio-accent/50 hover:shadow-xl hover:shadow-biblio-accent/10 group"
     >
       {/* Couverture */}
       <div className="relative aspect-[2/3] bg-white/5 flex items-center justify-center overflow-hidden">
@@ -634,7 +652,7 @@ function VisitorInfo({ info }) {
 
   return (
     <section className="grid gap-3 sm:grid-cols-2 mb-6" aria-label="Informations pratiques">
-      <div className={`rounded-xl border p-4 ${status.color}`}>
+      <div className={`public-info-card rounded-xl border p-4 ${status.color}`}>
         <div className="flex items-start gap-3">
           <Users className="w-5 h-5 shrink-0 mt-0.5" />
           <div>
@@ -644,7 +662,7 @@ function VisitorInfo({ info }) {
           </div>
         </div>
       </div>
-      <div className="rounded-xl border border-white/10 bg-biblio-card p-4">
+      <div className="public-info-card rounded-xl border border-white/10 bg-biblio-card p-4">
         <div className="flex items-start gap-3">
           <MapPin className="w-5 h-5 shrink-0 mt-0.5 text-biblio-accent" />
           <div className="min-w-0">
@@ -1243,7 +1261,7 @@ function App() {
 
   /* ── Render ── */
   return (
-    <div className="min-h-dvh overflow-x-hidden flex flex-col">
+    <div className="public-shell min-h-dvh overflow-x-hidden flex flex-col">
       {offlineCatalogue && (
         <div className="bg-amber-500/15 border-b border-amber-400/30 px-4 py-2 text-center text-xs font-medium text-amber-200" role="status">
           Mode hors connexion : catalogue enregistré sur cet appareil. Les données peuvent être anciennes.
@@ -1255,7 +1273,7 @@ function App() {
         </div>
       )}
       {/* ── Header ── */}
-      <header className="bg-biblio-card/95 border-b border-white/10 sticky top-0 z-30 backdrop-blur-xl">
+      <header className="public-header bg-biblio-card/95 border-b border-white/10 sticky top-0 z-30 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-3">
             <button
@@ -1359,7 +1377,7 @@ function App() {
               }`}
             >
               <div className="overflow-hidden">
-                <div className="mt-3 flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="public-controls mt-3 flex w-full flex-col gap-2 sm:flex-row sm:items-center">
               {pageView === "catalogue" && (
                 <>
                   {/* Recherche avec autocomplete */}
@@ -1581,7 +1599,7 @@ function App() {
       {pageView === "horaires" ? (
         <HorairesPage status={hoursStatus} onBack={goToCatalogue} />
       ) : (
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
+      <main className="public-main w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
         <VisitorInfo info={visitorInfo} />
         {/* Compteur + toggle grille/liste */}
         <div className="flex items-center justify-between gap-2 mb-6">
