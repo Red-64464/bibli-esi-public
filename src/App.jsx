@@ -135,6 +135,10 @@ function BookListRowSkeleton() {
 /* ─── Ligne liste ───────────────────────────────────────────────── */
 
 function BookListRow({ livre, onClick }) {
+  const [coverFailed, setCoverFailed] = useState(false);
+
+  useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
+
   return (
     <div
       onClick={() => onClick(livre)}
@@ -150,11 +154,12 @@ function BookListRow({ livre, onClick }) {
       className="flex items-center gap-3 bg-biblio-card border border-white/10 rounded-xl px-3 py-2.5 cursor-pointer hover:border-biblio-accent/50 hover:bg-white/5 transition-all"
     >
       <div className="w-9 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
-        {livre.couverture_url ? (
+        {livre.couverture_url && !coverFailed ? (
           <img
             src={livre.couverture_url}
             alt=""
             loading="lazy"
+            onError={() => setCoverFailed(true)}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -185,6 +190,10 @@ function BookListRow({ livre, onClick }) {
 /* ─── Carte livre ───────────────────────────────────────────────── */
 
 function BookCard({ livre, onClick }) {
+  const [coverFailed, setCoverFailed] = useState(false);
+
+  useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
+
   return (
     <div
       onClick={() => onClick(livre)}
@@ -201,11 +210,12 @@ function BookCard({ livre, onClick }) {
     >
       {/* Couverture */}
       <div className="relative aspect-[2/3] bg-white/5 flex items-center justify-center overflow-hidden">
-        {livre.couverture_url ? (
+        {livre.couverture_url && !coverFailed ? (
           <img
             src={livre.couverture_url}
             alt={livre.titre}
             loading="lazy"
+            onError={() => setCoverFailed(true)}
             className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
@@ -237,6 +247,7 @@ function BookCard({ livre, onClick }) {
 /* ─── Modal détail livre ────────────────────────────────────────── */
 
 function BookModal({ livre, onClose }) {
+  const [coverFailed, setCoverFailed] = useState(false);
   const statut = getStatut(livre);
   const c = STATUT_CONFIG[statut] ?? STATUT_CONFIG.disponible;
   const Icon = c.Icon;
@@ -252,6 +263,8 @@ function BookModal({ livre, onClose }) {
       window.removeEventListener("keydown", handleKey);
     };
   }, [onClose]);
+
+  useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
 
   const tags = livre.tags
     ? Array.isArray(livre.tags)
@@ -293,10 +306,11 @@ function BookModal({ livre, onClose }) {
           {/* Couverture */}
           <div className="flex-shrink-0 mx-auto sm:mx-0">
             <div className="w-36 h-52 sm:w-44 sm:h-64 bg-white/5 rounded-xl overflow-hidden border border-white/10 flex items-center justify-center">
-              {livre.couverture_url ? (
+              {livre.couverture_url && !coverFailed ? (
                 <img
                   src={livre.couverture_url}
                   alt={livre.titre}
+                  onError={() => setCoverFailed(true)}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -713,7 +727,7 @@ function FloatingHoursStatus({ status, onOpenHours }) {
     <button
       type="button"
       onClick={onOpenHours}
-      className="fixed bottom-5 left-4 z-40 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-biblio-card/95 px-4 py-3 text-left shadow-2xl shadow-black/25 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-biblio-accent/40 hover:shadow-biblio-accent/10 focus:outline-none focus:ring-2 focus:ring-biblio-accent sm:bottom-6 sm:left-6"
+      className="fixed bottom-4 left-4 z-40 max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-biblio-card/95 px-4 py-3 text-left shadow-2xl shadow-black/25 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-biblio-accent/40 hover:shadow-biblio-accent/10 focus:outline-none focus:ring-2 focus:ring-biblio-accent md:hidden"
       aria-label={`${label}. Ouvrir la page des horaires`}
     >
       <div className="flex items-center gap-3">
