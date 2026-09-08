@@ -206,7 +206,7 @@ function BookCard({ livre, onClick }) {
             src={livre.couverture_url}
             alt={livre.titre}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <BookOpen className="w-10 h-10 text-biblio-muted/30" />
@@ -651,7 +651,7 @@ function VisitorInfo({ info }) {
       : { title: "Places disponibles", text: "Vous pouvez venir à la bibliothèque.", color: "border-emerald-500/35 bg-emerald-500/10 text-emerald-200" };
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 mb-6" aria-label="Informations pratiques">
+    <section className="public-practical-grid mb-7 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]" aria-label="Informations pratiques">
       <div className={`public-info-card rounded-xl border p-4 ${status.color}`}>
         <div className="flex items-start gap-3">
           <Users className="w-5 h-5 shrink-0 mt-0.5" />
@@ -668,18 +668,18 @@ function VisitorInfo({ info }) {
           <div className="min-w-0">
             <p className="font-semibold text-sm text-biblio-text">Trouver la bibliothèque</p>
             {info.videoUrl ? (
-              <div className="mt-3 space-y-2">
-                <p className="inline-flex items-center gap-1.5 text-xs font-medium text-biblio-accent">
+              <details className="public-route mt-3">
+                <summary>
                   <PlayCircle className="w-4 h-4" /> {info.videoTitle}
-                </p>
+                </summary>
                 <video
                   src={info.videoUrl}
                   controls
                   playsInline
                   preload="metadata"
-                  className="aspect-video w-full rounded-lg border border-white/10 bg-black object-contain"
+                  className="mt-3 max-h-56 w-full rounded-lg border border-white/10 bg-black object-contain"
                 />
-              </div>
+              </details>
             ) : (
               <p className="text-xs mt-1 text-biblio-muted">La vidéo du trajet sera bientôt disponible.</p>
             )}
@@ -1287,11 +1287,11 @@ function App() {
                 alt="Bibl'ESI"
                 className="h-9 w-auto flex-shrink-0 sm:h-10"
               />
-              <span className="hidden min-w-0 sm:block">
-                <span className="block truncate text-sm font-black text-biblio-text">
+              <span className="block min-w-0">
+                <span className="block truncate text-xs font-black text-biblio-text sm:text-sm">
                   Bibl’ESI
                 </span>
-                <span className="block truncate text-xs font-medium text-biblio-muted">
+                <span className="hidden truncate text-xs font-medium text-biblio-muted sm:block">
                   Catalogue de la bibliothèque
                 </span>
               </span>
@@ -1601,8 +1601,32 @@ function App() {
       ) : (
       <main className="public-main w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
         <VisitorInfo info={visitorInfo} />
+        {categories.length > 0 && !recherche && !hasActiveFilters && (
+          <section className="public-explore mb-6" aria-label="Explorer le catalogue par catégorie">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-biblio-text">Explorer le catalogue</p>
+                <p className="mt-0.5 text-xs text-biblio-muted">Choisissez un thème pour affiner votre recherche.</p>
+              </div>
+              <span className="hidden text-xs font-medium text-biblio-muted sm:block">{livres.length} titres</span>
+            </div>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {categories.slice(0, 10).map((categorie) => (
+                <button
+                  key={categorie}
+                  type="button"
+                  onClick={() => setFiltres((f) => ({ ...f, categorie }))}
+                  className="public-category-chip"
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  <span>{categorie}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {/* Compteur + toggle grille/liste */}
-        <div className="flex items-center justify-between gap-2 mb-6">
+        <div className="public-catalogue-heading flex items-center justify-between gap-2 mb-5">
           <div className="flex items-center gap-2 text-biblio-muted text-sm min-w-0">
             <BookOpen className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">

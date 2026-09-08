@@ -86,8 +86,60 @@ button {
 }
 
 .public-info-card {
-  min-height: 116px;
+  min-height: 108px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.public-route summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-biblio-accent);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.public-route summary::-webkit-details-marker {
+  display: none;
+}
+
+.public-route[open] summary {
+  color: var(--color-biblio-text);
+}
+
+.public-explore {
+  border-block: 1px solid rgb(255 255 255 / 0.08);
+  padding-block: 1rem;
+}
+
+.public-category-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 34px;
+  border: 1px solid rgb(255 255 255 / 0.11);
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 0.035);
+  color: var(--color-biblio-text);
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.public-category-chip:hover,
+.public-category-chip:focus-visible {
+  border-color: var(--color-biblio-accent);
+  background: color-mix(in srgb, var(--color-biblio-accent) 13%, transparent);
+  color: var(--color-biblio-accent);
+  outline: none;
+}
+
+.public-catalogue-heading {
+  padding-top: 0.15rem;
 }
 
 .public-book-card {
@@ -172,6 +224,15 @@ html.theme-light .bg-white\/10 {
 
 html.theme-light .public-controls > div:first-child input {
   background-color: #ffffff;
+}
+
+html.theme-light .public-explore {
+  border-color: rgb(15 23 42 / 0.1);
+}
+
+html.theme-light .public-category-chip {
+  border-color: #dbe3e6;
+  background: #ffffff;
 }
 html.theme-light .border-white\/10,
 html.theme-light .border-white\/5 {
