@@ -135,17 +135,31 @@ function BookListRowSkeleton() {
 /* ─── Ligne liste ───────────────────────────────────────────────── */
 
 function BookListRow({ livre, onClick }) {
+  const [coverFailed, setCoverFailed] = useState(false);
+
+  useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
+
   return (
     <div
       onClick={() => onClick(livre)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick(livre);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Voir le détail de ${livre.titre}`}
       className="flex items-center gap-3 bg-biblio-card border border-white/10 rounded-xl px-3 py-2.5 cursor-pointer hover:border-biblio-accent/50 hover:bg-white/5 transition-all"
     >
       <div className="w-9 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
-        {livre.couverture_url ? (
+        {livre.couverture_url && !coverFailed ? (
           <img
             src={livre.couverture_url}
             alt=""
             loading="lazy"
+            onError={() => setCoverFailed(true)}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -176,19 +190,33 @@ function BookListRow({ livre, onClick }) {
 /* ─── Carte livre ───────────────────────────────────────────────── */
 
 function BookCard({ livre, onClick }) {
+  const [coverFailed, setCoverFailed] = useState(false);
+
+  useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
+
   return (
     <div
       onClick={() => onClick(livre)}
-      className="bg-biblio-card rounded-xl border border-white/10 overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:border-biblio-accent/50 hover:shadow-xl hover:shadow-biblio-accent/10 group"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick(livre);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Voir le détail de ${livre.titre}`}
+      className="public-book-card bg-biblio-card rounded-xl border border-white/10 overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:border-biblio-accent/50 hover:shadow-xl hover:shadow-biblio-accent/10 group"
     >
       {/* Couverture */}
       <div className="relative aspect-[2/3] bg-white/5 flex items-center justify-center overflow-hidden">
-        {livre.couverture_url ? (
+        {livre.couverture_url && !coverFailed ? (
           <img
             src={livre.couverture_url}
             alt={livre.titre}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={() => setCoverFailed(true)}
+            className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <BookOpen className="w-10 h-10 text-biblio-muted/30" />
@@ -219,6 +247,7 @@ function BookCard({ livre, onClick }) {
 /* ─── Modal détail livre ────────────────────────────────────────── */
 
 function BookModal({ livre, onClose }) {
+  const [coverFailed, setCoverFailed] = useState(false);
   const statut = getStatut(livre);
   const c = STATUT_CONFIG[statut] ?? STATUT_CONFIG.disponible;
   const Icon = c.Icon;
@@ -234,6 +263,8 @@ function BookModal({ livre, onClose }) {
       window.removeEventListener("keydown", handleKey);
     };
   }, [onClose]);
+
+  useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
 
   const tags = livre.tags
     ? Array.isArray(livre.tags)
@@ -275,10 +306,11 @@ function BookModal({ livre, onClose }) {
           {/* Couverture */}
           <div className="flex-shrink-0 mx-auto sm:mx-0">
             <div className="w-36 h-52 sm:w-44 sm:h-64 bg-white/5 rounded-xl overflow-hidden border border-white/10 flex items-center justify-center">
-              {livre.couverture_url ? (
+              {livre.couverture_url && !coverFailed ? (
                 <img
                   src={livre.couverture_url}
                   alt={livre.titre}
+                  onError={() => setCoverFailed(true)}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -633,8 +665,8 @@ function VisitorInfo({ info }) {
       : { title: "Places disponibles", text: "Vous pouvez venir à la bibliothèque.", color: "border-emerald-500/35 bg-emerald-500/10 text-emerald-200" };
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 mb-6" aria-label="Informations pratiques">
-      <div className={`rounded-xl border p-4 ${status.color}`}>
+    <section className="public-practical-grid mb-7 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]" aria-label="Informations pratiques">
+      <div className={`public-info-card rounded-xl border p-4 ${status.color}`}>
         <div className="flex items-start gap-3">
           <Users className="w-5 h-5 shrink-0 mt-0.5" />
           <div>
@@ -644,24 +676,24 @@ function VisitorInfo({ info }) {
           </div>
         </div>
       </div>
-      <div className="rounded-xl border border-white/10 bg-biblio-card p-4">
+      <div className="public-info-card rounded-xl border border-white/10 bg-biblio-card p-4">
         <div className="flex items-start gap-3">
           <MapPin className="w-5 h-5 shrink-0 mt-0.5 text-biblio-accent" />
           <div className="min-w-0">
             <p className="font-semibold text-sm text-biblio-text">Trouver la bibliothèque</p>
             {info.videoUrl ? (
-              <div className="mt-3 space-y-2">
-                <p className="inline-flex items-center gap-1.5 text-xs font-medium text-biblio-accent">
+              <details className="public-route mt-3">
+                <summary>
                   <PlayCircle className="w-4 h-4" /> {info.videoTitle}
-                </p>
+                </summary>
                 <video
                   src={info.videoUrl}
                   controls
                   playsInline
                   preload="metadata"
-                  className="aspect-video w-full rounded-lg border border-white/10 bg-black object-contain"
+                  className="mt-3 max-h-56 w-full rounded-lg border border-white/10 bg-black object-contain"
                 />
-              </div>
+              </details>
             ) : (
               <p className="text-xs mt-1 text-biblio-muted">La vidéo du trajet sera bientôt disponible.</p>
             )}
@@ -695,7 +727,7 @@ function FloatingHoursStatus({ status, onOpenHours }) {
     <button
       type="button"
       onClick={onOpenHours}
-      className="fixed bottom-5 left-4 z-40 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-biblio-card/95 px-4 py-3 text-left shadow-2xl shadow-black/25 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-biblio-accent/40 hover:shadow-biblio-accent/10 focus:outline-none focus:ring-2 focus:ring-biblio-accent sm:bottom-6 sm:left-6"
+      className="hidden"
       aria-label={`${label}. Ouvrir la page des horaires`}
     >
       <div className="flex items-center gap-3">
@@ -1243,7 +1275,7 @@ function App() {
 
   /* ── Render ── */
   return (
-    <div className="min-h-dvh overflow-x-hidden flex flex-col">
+    <div className="public-shell min-h-dvh overflow-x-hidden flex flex-col">
       {offlineCatalogue && (
         <div className="bg-amber-500/15 border-b border-amber-400/30 px-4 py-2 text-center text-xs font-medium text-amber-200" role="status">
           Mode hors connexion : catalogue enregistré sur cet appareil. Les données peuvent être anciennes.
@@ -1255,7 +1287,7 @@ function App() {
         </div>
       )}
       {/* ── Header ── */}
-      <header className="bg-biblio-card/95 border-b border-white/10 sticky top-0 z-30 backdrop-blur-xl">
+      <header className="public-header bg-biblio-card/95 border-b border-white/10 sticky top-0 z-30 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-3">
             <button
@@ -1269,11 +1301,11 @@ function App() {
                 alt="Bibl'ESI"
                 className="h-9 w-auto flex-shrink-0 sm:h-10"
               />
-              <span className="hidden min-w-0 sm:block">
-                <span className="block truncate text-sm font-black text-biblio-text">
+              <span className="block min-w-0">
+                <span className="block truncate text-xs font-black text-biblio-text sm:text-sm">
                   Bibl’ESI
                 </span>
-                <span className="block truncate text-xs font-medium text-biblio-muted">
+                <span className="hidden truncate text-xs font-medium text-biblio-muted sm:block">
                   Catalogue de la bibliothèque
                 </span>
               </span>
@@ -1359,7 +1391,7 @@ function App() {
               }`}
             >
               <div className="overflow-hidden">
-                <div className="mt-3 flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="public-controls mt-3 flex w-full flex-col gap-2 sm:flex-row sm:items-center">
               {pageView === "catalogue" && (
                 <>
                   {/* Recherche avec autocomplete */}
@@ -1581,10 +1613,34 @@ function App() {
       {pageView === "horaires" ? (
         <HorairesPage status={hoursStatus} onBack={goToCatalogue} />
       ) : (
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
+      <main className="public-main w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
         <VisitorInfo info={visitorInfo} />
+        {categories.length > 0 && !recherche && !hasActiveFilters && (
+          <section className="public-explore mb-6" aria-label="Explorer le catalogue par catégorie">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-biblio-text">Explorer le catalogue</p>
+                <p className="mt-0.5 text-xs text-biblio-muted">Choisissez un thème pour affiner votre recherche.</p>
+              </div>
+              <span className="hidden text-xs font-medium text-biblio-muted sm:block">{livres.length} titres</span>
+            </div>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {categories.slice(0, 10).map((categorie) => (
+                <button
+                  key={categorie}
+                  type="button"
+                  onClick={() => setFiltres((f) => ({ ...f, categorie }))}
+                  className="public-category-chip"
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  <span>{categorie}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {/* Compteur + toggle grille/liste */}
-        <div className="flex items-center justify-between gap-2 mb-6">
+        <div className="public-catalogue-heading flex items-center justify-between gap-2 mb-5">
           <div className="flex items-center gap-2 text-biblio-muted text-sm min-w-0">
             <BookOpen className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">
@@ -1603,6 +1659,16 @@ function App() {
                 </span>
               )}
             </span>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-biblio-accent/30 bg-biblio-accent/10 px-2 py-1 text-xs font-semibold text-biblio-accent transition-colors hover:bg-biblio-accent hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+                Effacer le filtre
+              </button>
+            )}
           </div>
           {/* Toggle vue */}
           <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1 flex-shrink-0">
