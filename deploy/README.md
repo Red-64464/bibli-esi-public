@@ -3,6 +3,11 @@
 Deploy the existing stack with the cover override. Paths are relative to the
 original Compose file; `BIBLIESI_PUBLIC_CONTEXT` must point to this repository.
 
+On the production VPS, the admin `deploy/docker-compose.override.yml` is a
+symlink to `../../bibli-esi-public-runtime/deploy/compose.covers.yml`. Ordinary
+Compose commands without explicit `-f` options therefore keep the cover service
+and private network. When using explicit `-f`, include both files as below.
+
 ```sh
 docker compose -p bibliesi --env-file .env \
   -f docker-compose.yml \
