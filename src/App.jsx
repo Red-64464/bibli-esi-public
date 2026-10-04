@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { supabase } from "./lib/supabase";
+import { coverUrl } from "./lib/covers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   readPracticalInfo,
@@ -134,7 +135,7 @@ function BookListRowSkeleton() {
 
 /* ─── Ligne liste ───────────────────────────────────────────────── */
 
-function BookListRow({ livre, onClick }) {
+function BookListRow({ livre, onClick, priority = false }) {
   const [coverFailed, setCoverFailed] = useState(false);
 
   useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
@@ -156,9 +157,10 @@ function BookListRow({ livre, onClick }) {
       <div className="w-9 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
         {livre.couverture_url && !coverFailed ? (
           <img
-            src={livre.couverture_url}
+            src={coverUrl(livre)}
             alt=""
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
             onError={() => setCoverFailed(true)}
             className="h-full w-full object-cover"
           />
@@ -189,7 +191,7 @@ function BookListRow({ livre, onClick }) {
 
 /* ─── Carte livre ───────────────────────────────────────────────── */
 
-function BookCard({ livre, onClick }) {
+function BookCard({ livre, onClick, priority = false }) {
   const [coverFailed, setCoverFailed] = useState(false);
 
   useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
@@ -212,9 +214,10 @@ function BookCard({ livre, onClick }) {
       <div className="relative aspect-[2/3] bg-white/5 flex items-center justify-center overflow-hidden">
         {livre.couverture_url && !coverFailed ? (
           <img
-            src={livre.couverture_url}
+            src={coverUrl(livre)}
             alt={livre.titre}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
             onError={() => setCoverFailed(true)}
             className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]"
           />
@@ -308,8 +311,9 @@ function BookModal({ livre, onClose }) {
             <div className="w-36 h-52 sm:w-44 sm:h-64 bg-white/5 rounded-xl overflow-hidden border border-white/10 flex items-center justify-center">
               {livre.couverture_url && !coverFailed ? (
                 <img
-                  src={livre.couverture_url}
+                  src={coverUrl(livre)}
                   alt={livre.titre}
+                  decoding="async"
                   onError={() => setCoverFailed(true)}
                   className="h-full w-full object-cover"
                 />
@@ -1740,10 +1744,11 @@ function App() {
         ) : vue === "grille" ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
-              {livresAffiches.map((livre) => (
+              {livresAffiches.map((livre, index) => (
                 <BookCard
                   key={livre.id}
                   livre={livre}
+                  priority={index < 6}
                   onClick={setLivreSelectionne}
                 />
               ))}
@@ -1753,10 +1758,11 @@ function App() {
         ) : (
           <>
             <div className="flex flex-col gap-2">
-              {livresAffiches.map((livre) => (
+              {livresAffiches.map((livre, index) => (
                 <BookListRow
                   key={livre.id}
                   livre={livre}
+                  priority={index < 8}
                   onClick={setLivreSelectionne}
                 />
               ))}

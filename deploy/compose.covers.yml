@@ -1,0 +1,28 @@
+# Add this file to the existing Bibl'ESI Compose deployment (-f ... -f this-file).
+services:
+  public:
+    networks: [coolify, covers]
+    depends_on:
+      cover-service:
+        condition: service_healthy
+  cover-service:
+    build:
+      context: ${BIBLIESI_PUBLIC_CONTEXT:-../../bibli-esi-public}/image-service
+    container_name: bibliesi-cover-service
+    restart: unless-stopped
+    networks: [covers]
+    volumes: [cover-cache:/cache]
+    mem_limit: 256m
+    cpus: 1
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+volumes:
+  cover-cache:
+networks:
+  covers:
