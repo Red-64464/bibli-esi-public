@@ -10,8 +10,8 @@ export default defineConfig({
     filename: "sw.js",
     manifest: false,
     injectRegister: false,
-    registerType: "autoUpdate",
-    injectManifest: { globPatterns: ["**/*.{js,css,html,png,svg,ico,json}"] },
+    registerType: "prompt",
+    injectManifest: { globPatterns: ["**/*.{js,css,html,png,svg,ico,json,woff2}"] },
   })],
   server: {
     proxy: {

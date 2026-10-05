@@ -2,7 +2,9 @@ import { Component, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
+import "./design.css";
 import App from "./App.jsx";
+import UpdatePrompt from "./components/UpdatePrompt.jsx";
 
 class AppErrorBoundary extends Component {
   state = { hasError: false };
@@ -31,15 +33,6 @@ class AppErrorBoundary extends Component {
   }
 }
 
-// Enregistrement du Service Worker (PWA)
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
-      console.warn("SW registration failed:", err);
-    });
-  });
-}
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -56,6 +49,7 @@ createRoot(document.getElementById("root")).render(
     <QueryClientProvider client={queryClient}>
       <AppErrorBoundary>
         <App />
+        <UpdatePrompt />
       </AppErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,

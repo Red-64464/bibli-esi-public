@@ -6,6 +6,12 @@ db.version(1).stores({
   catalog: "key",
   practical: "key",
 });
+// Drop cached visitor/video data, keeping the opening-hours cache and books.
+db.version(2).stores({ catalog: "key", practical: "key" }).upgrade(async transaction => {
+  await transaction.table("practical").toCollection().modify(entry => {
+    if (entry.data) delete entry.data.info;
+  });
+});
 
 const CATALOG_KEY = "catalogue";
 const PRACTICAL_KEY = "informations";

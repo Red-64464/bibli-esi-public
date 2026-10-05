@@ -27,8 +27,8 @@ Cover identifiers/filenames must change when replacing an original image.
 The `/covers/v1` prefix versions the transformation for future format changes.
 
 Workbox caches 300 successful same-origin images for up to 30 days on the
-device, cleans old entries and handles storage quota errors. Realtime/API and
-affluence responses are never handled by the image cache.
+device, cleans old entries and handles storage quota errors. Realtime/API
+responses are never handled by the image cache.
 
 Warm/benchmark the catalogue (use a public anon key, never a service-role key):
 

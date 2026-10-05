@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 import { coverUrl } from "./lib/covers";
+import * as Dialog from "@radix-ui/react-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   readPracticalInfo,
@@ -29,9 +30,6 @@ import {
   Download,
   AlertTriangle,
   ChevronUp,
-  Users,
-  MapPin,
-  PlayCircle,
 } from "lucide-react";
 
 const PAGE_SIZE = 24;
@@ -39,6 +37,7 @@ const PUBLIC_BOOK_COLUMNS =
   "id,titre,sous_titre,auteur,isbn,editeur,annee,langue,categorie,tags,resume,description,emplacement,nb_exemplaires,exemplaires_total,exemplaires_disponibles,statut,disponible,couverture_url,date_ajout";
 const PUBLIC_SETTINGS_REFRESH_MS = 60_000;
 const PUBLIC_BOOKS_REFRESH_MS = 60_000;
+const EMPTY_BOOKS = [];
 
 async function fetchPublicCatalogue() {
   const { data, error } = await supabase
@@ -95,9 +94,9 @@ function StatutBadge({ livre }) {
   const c = STATUT_CONFIG[statut] ?? STATUT_CONFIG.disponible;
   return (
     <span
-      className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${c.badge}`}
+      className={`book-status book-status--${statut} inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
       {c.label}
     </span>
   );
@@ -152,7 +151,7 @@ function BookListRow({ livre, onClick, priority = false }) {
       role="button"
       tabIndex={0}
       aria-label={`Voir le détail de ${livre.titre}`}
-      className="flex items-center gap-3 bg-biblio-card border border-white/10 rounded-xl px-3 py-2.5 cursor-pointer hover:border-biblio-accent/50 hover:bg-white/5 transition-all"
+      className="public-list-row flex items-center gap-3 bg-biblio-card border border-white/10 rounded-xl px-3 py-2.5 cursor-pointer hover:border-biblio-accent/50 hover:bg-white/5 transition-all"
     >
       <div className="w-9 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
         {livre.couverture_url && !coverFailed ? (
@@ -208,10 +207,10 @@ function BookCard({ livre, onClick, priority = false }) {
       role="button"
       tabIndex={0}
       aria-label={`Voir le détail de ${livre.titre}`}
-      className="public-book-card bg-biblio-card rounded-xl border border-white/10 overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:border-biblio-accent/50 hover:shadow-xl hover:shadow-biblio-accent/10 group"
+      className="public-book-card flex flex-col cursor-pointer group"
     >
       {/* Couverture */}
-      <div className="relative aspect-[2/3] bg-white/5 flex items-center justify-center overflow-hidden">
+      <div className="public-cover-stage relative flex items-center justify-center overflow-hidden">
         {livre.couverture_url && !coverFailed ? (
           <img
             src={coverUrl(livre)}
@@ -222,12 +221,16 @@ function BookCard({ livre, onClick, priority = false }) {
             className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
-          <BookOpen className="w-10 h-10 text-biblio-muted/30" />
+          <div className="public-cover-placeholder">
+            <BookOpen aria-hidden="true" />
+            <span>{livre.titre}</span>
+            <small>Couverture indisponible</small>
+          </div>
         )}
       </div>
 
       {/* Infos */}
-      <div className="p-3 flex-1 flex flex-col gap-1">
+      <div className="public-book-info flex-1 flex flex-col gap-1">
         <div className="mb-1 self-start">
           <StatutBadge livre={livre} />
         </div>
@@ -255,18 +258,6 @@ function BookModal({ livre, onClose }) {
   const c = STATUT_CONFIG[statut] ?? STATUT_CONFIG.disponible;
   const Icon = c.Icon;
 
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    const handleKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKey);
-    };
-  }, [onClose]);
-
   useEffect(() => setCoverFailed(false), [livre.id, livre.couverture_url]);
 
   const tags = livre.tags
@@ -287,23 +278,19 @@ function BookModal({ livre, onClose }) {
       : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Panel */}
-      <div className="relative bg-biblio-card border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
+    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+      <Dialog.Overlay className="library-dialog-overlay" />
+      <Dialog.Content className="library-dialog" aria-describedby={undefined}>
         {/* Bouton fermer */}
+        <Dialog.Close asChild>
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors z-10"
+          className="library-dialog-close absolute top-3 right-3 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors z-10"
           aria-label="Fermer"
         >
           <X className="w-5 h-5 text-biblio-muted" />
         </button>
+        </Dialog.Close>
 
         <div className="flex flex-col sm:flex-row gap-6 p-6">
           {/* Couverture */}
@@ -335,9 +322,9 @@ function BookModal({ livre, onClose }) {
 
             {/* Titre */}
             <div>
-              <h2 className="text-xl font-bold text-biblio-text leading-tight">
+              <Dialog.Title asChild><h2 className="text-xl font-bold text-biblio-text leading-tight">
                 {livre.titre}
-              </h2>
+              </h2></Dialog.Title>
               {livre.sous_titre && (
                 <p className="text-biblio-muted mt-1 text-sm">
                   {livre.sous_titre}
@@ -440,8 +427,9 @@ function BookModal({ livre, onClose }) {
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -532,7 +520,7 @@ function useLibraryHoursStatus() {
           try {
             const parsed = JSON.parse(row.library_hours ?? "{}");
             setHoursMap(parsed);
-          } catch (_) {
+          } catch {
             setHoursMap({});
           }
 
@@ -542,7 +530,7 @@ function useLibraryHoursStatus() {
           // Message
           setClosedMsg(practical.closedMsg);
         }
-      } catch (_) {
+      } catch {
         const cached = await readPracticalInfo().catch(() => null);
         if (!cancelled && cached) {
           try { setHoursMap(JSON.parse(cached.hours || "{}")); } catch { setHoursMap({}); }
@@ -610,102 +598,6 @@ function useLibraryHoursStatus() {
     isOpen,
     prochainEvenement,
   };
-}
-
-function useVisitorInfo() {
-  const [info, setInfo] = useState({ capacity: 3, occupancy: 0, videoUrl: "", videoTitle: "Comment venir à la bibliothèque" });
-
-  useEffect(() => {
-    let cancelled = false;
-    let realtimeTimer = null;
-    const load = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("bibli_public_settings")
-          .select("key,value")
-          .in("key", ["library_capacity", "library_current_occupancy", "library_arrival_video_url", "library_arrival_video_title"]);
-        if (error) throw error;
-        if (!cancelled && data) {
-          const row = Object.fromEntries(data.map((item) => [item.key, item.value]));
-          const nextCapacity = Math.max(1, Number.parseInt(row.library_capacity || "3", 10) || 3);
-          const nextInfo = {
-            capacity: nextCapacity,
-            occupancy: Math.min(Math.max(0, Number.parseInt(row.library_current_occupancy || "0", 10) || 0), nextCapacity),
-            videoUrl: row.library_arrival_video_url || "",
-            videoTitle: row.library_arrival_video_title || "Comment venir à la bibliothèque",
-          };
-          setInfo(nextInfo);
-          writePracticalInfo({ ...(await readPracticalInfo().catch(() => ({}))), info: nextInfo }).catch(() => {});
-        }
-      } catch (_) {
-        const cached = await readPracticalInfo().catch(() => null);
-        if (!cancelled && cached?.info) setInfo(cached.info);
-      }
-    };
-    const refreshFromRealtime = () => {
-      clearTimeout(realtimeTimer);
-      // La base est la source unique : on attend la fin de la transaction atomique.
-      realtimeTimer = setTimeout(load, 80);
-    };
-    load();
-    const channel = supabase
-      .channel("public-affluence-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "bibli_settings" }, refreshFromRealtime)
-      .subscribe();
-    const id = setInterval(load, PUBLIC_SETTINGS_REFRESH_MS);
-    window.addEventListener("focus", load);
-    return () => { cancelled = true; clearTimeout(realtimeTimer); clearInterval(id); window.removeEventListener("focus", load); supabase.removeChannel(channel); };
-  }, []);
-
-  return info;
-}
-function VisitorInfo({ info }) {
-  const full = info.occupancy >= info.capacity;
-  const almostFull = !full && info.occupancy >= Math.max(1, info.capacity - 1);
-  const status = full
-    ? { title: "Bibliothèque complète", text: "Merci d'attendre avant de venir.", color: "border-red-500/35 bg-red-500/10 text-red-300" }
-    : almostFull
-      ? { title: "Presque complète", text: "Il reste très peu de place.", color: "border-amber-500/35 bg-amber-500/10 text-amber-200" }
-      : { title: "Places disponibles", text: "Vous pouvez venir à la bibliothèque.", color: "border-emerald-500/35 bg-emerald-500/10 text-emerald-200" };
-
-  return (
-    <section className="public-practical-grid mb-7 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]" aria-label="Informations pratiques">
-      <div className={`public-info-card rounded-xl border p-4 ${status.color}`}>
-        <div className="flex items-start gap-3">
-          <Users className="w-5 h-5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-sm">{status.title}</p>
-            <p className="text-xs mt-1 opacity-90">{status.text}</p>
-            <p className="text-xs mt-2 font-medium">{Math.min(info.occupancy, info.capacity)} / {info.capacity} personne{info.capacity > 1 ? "s" : ""} présente{info.occupancy > 1 ? "s" : ""}</p>
-          </div>
-        </div>
-      </div>
-      <div className="public-info-card rounded-xl border border-white/10 bg-biblio-card p-4">
-        <div className="flex items-start gap-3">
-          <MapPin className="w-5 h-5 shrink-0 mt-0.5 text-biblio-accent" />
-          <div className="min-w-0">
-            <p className="font-semibold text-sm text-biblio-text">Trouver la bibliothèque</p>
-            {info.videoUrl ? (
-              <details className="public-route mt-3">
-                <summary>
-                  <PlayCircle className="w-4 h-4" /> {info.videoTitle}
-                </summary>
-                <video
-                  src={info.videoUrl}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="mt-3 max-h-56 w-full rounded-lg border border-white/10 bg-black object-contain"
-                />
-              </details>
-            ) : (
-              <p className="text-xs mt-1 text-biblio-muted">La vidéo du trajet sera bientôt disponible.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
 }
 
 function FloatingHoursStatus({ status, onOpenHours }) {
@@ -934,19 +826,17 @@ function HorairesPage({ status, onBack }) {
         ← Retour au catalogue
       </button>
 
-      <div className="mb-6 rounded-3xl border border-white/10 bg-gradient-to-br from-biblio-accent/20 via-biblio-card to-biblio-card p-6 sm:p-8 shadow-2xl shadow-black/10">
+      <div className="public-hours-heading mb-6 border-b border-white/10 pb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-biblio-accent">
               Bibl’ESI
             </p>
-            <h2 className="text-2xl sm:text-3xl font-black text-biblio-text">
+            <h1 className="collection-title text-biblio-text">
               Horaires d&apos;ouverture
-            </h2>
+            </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-biblio-muted">
-              Consultez rapidement si la bibliothèque est ouverte aujourd’hui,
-              puis gardez le pop-up comme rappel discret pendant votre
-              navigation.
+              Retrouvez les horaires de la semaine et les éventuelles fermetures exceptionnelles avant de vous déplacer.
             </p>
           </div>
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-biblio-accent/15 text-biblio-accent">
@@ -1050,7 +940,7 @@ function App() {
     queryFn: fetchPublicCatalogue,
     refetchInterval: PUBLIC_BOOKS_REFRESH_MS,
   });
-  const livres = catalogueResult?.data || [];
+  const livres = catalogueResult?.data || EMPTY_BOOKS;
   const offlineCatalogue = catalogueResult?.offline === true;
   const [recherche, setRecherche] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -1067,13 +957,12 @@ function App() {
   const [scrollY, setScrollY] = useState(0);
   const [vue, setVue] = useState(() => localStorage.getItem("vue") || "grille");
   const [theme, setTheme] = useState(
-    () => localStorage.getItem("theme") || "dark",
+    () => localStorage.getItem("theme") || "light",
   );
   const [page, setPage] = useState(1);
   const [installPrompt, setInstallPrompt] = useState(null);
   const searchRef = useRef(null);
   const hoursStatus = useLibraryHoursStatus();
-  const visitorInfo = useVisitorInfo();
   const [pageView, setPageView] = useState(() =>
     window.location.hash === "#horaires" ? "horaires" : "catalogue",
   );
@@ -1291,35 +1180,36 @@ function App() {
         </div>
       )}
       {/* ── Header ── */}
-      <header className="public-header bg-biblio-card/95 border-b border-white/10 sticky top-0 z-30 backdrop-blur-xl">
+      <header className="public-header border-b border-white/10 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="public-masthead flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={goToCatalogue}
-              className="flex min-w-0 items-center gap-3 text-left"
+              className="public-brand flex min-w-0 items-center gap-3 text-left"
               aria-label="Retour au catalogue Bibl'ESI"
             >
               <img
-                src="/logo.png"
+                src={theme === "light" ? "/images/brand/logo-light.png" : "/images/brand/logo-dark.png"}
                 alt="Bibl'ESI"
                 className="h-9 w-auto flex-shrink-0 sm:h-10"
               />
               <span className="block min-w-0">
-                <span className="block truncate text-xs font-black text-biblio-text sm:text-sm">
+                <span className="public-brand-name block truncate text-biblio-text">
                   Bibl’ESI
                 </span>
-                <span className="hidden truncate text-xs font-medium text-biblio-muted sm:block">
-                  Catalogue de la bibliothèque
+                <span className="public-brand-subtitle block truncate">
+                  Bibliothèque étudiante · ESI
                 </span>
               </span>
             </button>
 
             <div className="flex items-center gap-2">
-              <div className="hidden rounded-xl border border-white/10 bg-white/5 p-1 sm:flex">
+              <div className="public-nav hidden sm:flex">
                 <button
                   type="button"
                   onClick={goToCatalogue}
+                  aria-current={pageView === "catalogue" ? "page" : undefined}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                     pageView === "catalogue"
                       ? "bg-biblio-accent text-white shadow-sm"
@@ -1332,6 +1222,7 @@ function App() {
                 <button
                   type="button"
                   onClick={goToHours}
+                  aria-current={pageView === "horaires" ? "page" : undefined}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                     pageView === "horaires"
                       ? "bg-biblio-accent text-white shadow-sm"
@@ -1386,6 +1277,16 @@ function App() {
           </div>
 
           {/* Barre catalogue : recherche + filtres + tri */}
+          {pageView === "catalogue" && (
+            <section className="public-hero" aria-label="Bienvenue à la bibliothèque">
+              <div>
+                <p className="library-eyebrow">Bibliothèque étudiante · ESI</p>
+                <h1>À chaque envie,<br /><em>un nouveau livre.</em></h1>
+                <p>Le catalogue de Bibl’ESI, à portée de main.<br />Explorez les ouvrages et retrouvez votre prochaine lecture.</p>
+              </div>
+              <div className="public-hero-index"><span className="library-live-dot" aria-hidden="true" /><span>Disponibilités mises à jour en direct</span></div>
+            </section>
+          )}
           <div className="min-h-0">
             <div
               className={`grid transition-[grid-template-rows,opacity] duration-200 ${
@@ -1412,6 +1313,7 @@ function App() {
                         setTimeout(() => setShowSuggestions(false), 150)
                       }
                       placeholder="Titre, auteur, ISBN…"
+                      aria-label="Rechercher un livre"
                       className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-9 py-2.5 text-biblio-text placeholder-biblio-muted focus:outline-none focus:ring-2 focus:ring-biblio-accent text-sm"
                     />
                     {recherche && (
@@ -1458,6 +1360,7 @@ function App() {
                         : "bg-white/5 border-white/10 text-biblio-muted hover:text-biblio-text hover:bg-white/10"
                     }`}
                     aria-label="Filtres"
+                    aria-expanded={showFilters}
                   >
                     <SlidersHorizontal className="w-4 h-4" />
                     <span className="hidden sm:inline">Filtres</span>
@@ -1469,6 +1372,7 @@ function App() {
                   {/* Tri */}
                   <div className="relative flex-shrink-0">
                     <select
+                      aria-label="Trier les ouvrages"
                       value={tri}
                       onChange={(e) => setTri(e.target.value)}
                       className="appearance-none bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2.5 text-biblio-text text-sm focus:outline-none focus:ring-2 focus:ring-biblio-accent cursor-pointer"
@@ -1501,9 +1405,9 @@ function App() {
                   <div className="flex flex-wrap gap-2">
                     {[
                       { val: "all", label: "Tous" },
-                      { val: "disponible", label: "🟢 Disponible" },
-                      { val: "emprunte", label: "🔴 Emprunté" },
-                      { val: "reserve", label: "🟡 Réservé" },
+                      { val: "disponible", label: "Disponible" },
+                      { val: "emprunte", label: "Emprunté" },
+                      { val: "reserve", label: "Réservé" },
                     ].map((opt) => (
                       <button
                         key={opt.val}
@@ -1528,10 +1432,11 @@ function App() {
                 {/* Catégorie */}
                 {categories.length > 0 && (
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs text-biblio-muted font-semibold uppercase tracking-wider">
+                    <label htmlFor="filter-category" className="text-xs text-biblio-muted font-semibold uppercase tracking-wider">
                       Catégorie
                     </label>
                     <select
+                      id="filter-category"
                       value={filtres.categorie}
                       onChange={(e) =>
                         setFiltres((f) => ({
@@ -1554,10 +1459,11 @@ function App() {
                 {/* Langue */}
                 {langues.length > 0 && (
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs text-biblio-muted font-semibold uppercase tracking-wider">
+                    <label htmlFor="filter-language" className="text-xs text-biblio-muted font-semibold uppercase tracking-wider">
                       Langue
                     </label>
                     <select
+                      id="filter-language"
                       value={filtres.langue}
                       onChange={(e) =>
                         setFiltres((f) => ({ ...f, langue: e.target.value }))
@@ -1618,7 +1524,6 @@ function App() {
         <HorairesPage status={hoursStatus} onBack={goToCatalogue} />
       ) : (
       <main className="public-main w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28 flex-1">
-        <VisitorInfo info={visitorInfo} />
         {categories.length > 0 && !recherche && !hasActiveFilters && (
           <section className="public-explore mb-6" aria-label="Explorer le catalogue par catégorie">
             <div className="flex items-center justify-between gap-3">
@@ -1640,11 +1545,17 @@ function App() {
                   <span>{categorie}</span>
                 </button>
               ))}
+              <button type="button" className="public-all-themes sm:hidden" onClick={() => {
+                setShowFilters(true);
+                requestAnimationFrame(() => document.querySelector('[aria-label="Filtres"]')?.scrollIntoView({ block: "center", behavior: "auto" }));
+              }}>Tous les thèmes →</button>
             </div>
           </section>
         )}
         {/* Compteur + toggle grille/liste */}
         <div className="public-catalogue-heading flex items-center justify-between gap-2 mb-5">
+          <div>
+          <h2 className="collection-title">{recherche || hasActiveFilters ? "Votre recherche" : "La collection"}</h2>
           <div className="flex items-center gap-2 text-biblio-muted text-sm min-w-0">
             <BookOpen className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">
@@ -1675,6 +1586,7 @@ function App() {
             )}
           </div>
           {/* Toggle vue */}
+          </div>
           <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1 flex-shrink-0">
             <button
               onClick={() => setVue("grille")}
@@ -1704,7 +1616,7 @@ function App() {
         {/* Chargement — skeletons adaptés à la vue */}
         {loading ? (
           vue === "grille" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
+            <div className="public-book-grid">
               {Array.from({ length: 12 }).map((_, i) => (
                 <BookCardSkeleton key={i} />
               ))}
@@ -1743,7 +1655,7 @@ function App() {
           </div>
         ) : vue === "grille" ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
+            <div className="public-book-grid">
               {livresAffiches.map((livre, index) => (
                 <BookCard
                   key={livre.id}
@@ -1774,11 +1686,12 @@ function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-white/10 py-8 mt-auto">
+      <footer className="public-footer border-t border-white/10 py-8 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <p className="text-center text-xs text-biblio-muted">
             Bibl’ESI — Bibliothèque étudiante de l’ESI
           </p>
+          <span className="public-footer-note">Lire. Comprendre. Partager.</span>
         </div>
       </footer>
 
